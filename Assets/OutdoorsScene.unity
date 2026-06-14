@@ -5592,6 +5592,8 @@ MonoBehaviour:
   suspensionTravel: 0.12
   suspensionDamping: 16
   aiMaxStuckTime: 4.5
+  controlsEnabled: 1
+  currentPosition: 1
 --- !u!54 &495826203
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -7750,6 +7752,53 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1770155995}
   m_SourcePrefab: {fileID: 100100000, guid: 1a17ac71890a8e14d8483536354c686e, type: 3}
+--- !u!1 &688349404
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 688349406}
+  - component: {fileID: 688349405}
+  m_Layer: 0
+  m_Name: RaceManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &688349405
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 688349404}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb677880e30faa04282e5c03fe44cc4b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RaceManager
+  totalLaps: 3
+  countdownDuration: 3
+  currentState: 0
+--- !u!4 &688349406
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 688349404}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &689536888
 GameObject:
   m_ObjectHideFlags: 0
@@ -15585,6 +15634,8 @@ MonoBehaviour:
   suspensionTravel: 0.12
   suspensionDamping: 16
   aiMaxStuckTime: 4.5
+  controlsEnabled: 1
+  currentPosition: 1
 --- !u!54 &1307445173
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -21260,6 +21311,8 @@ MonoBehaviour:
   suspensionTravel: 0.12
   suspensionDamping: 16
   aiMaxStuckTime: 4.5
+  controlsEnabled: 1
+  currentPosition: 1
 --- !u!54 &1722793272
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -21903,6 +21956,8 @@ MonoBehaviour:
   suspensionTravel: 0.12
   suspensionDamping: 16
   aiMaxStuckTime: 4.5
+  controlsEnabled: 1
+  currentPosition: 1
 --- !u!54 &1752968463
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -28145,3 +28200,4 @@ SceneRoots:
   - {fileID: 1591324459}
   - {fileID: 838902580}
   - {fileID: 174496577}
+  - {fileID: 688349406}

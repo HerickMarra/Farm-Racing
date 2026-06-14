@@ -66,6 +66,16 @@ public class KartController : MonoBehaviour
     [Header("Respawn Settings")]
     public float aiMaxStuckTime = 4.5f;
 
+    // Race Tracking
+    [HideInInspector] public bool controlsEnabled = true;
+    private int currentLap = 1;
+    public int CurrentLap
+    {
+        get => currentLap;
+        set => currentLap = value;
+    }
+    [HideInInspector] public int currentPosition = 1;
+
     // Internal physics variables
     private Rigidbody rb;
     private float throttleInput;
@@ -231,6 +241,21 @@ public class KartController : MonoBehaviour
 
     private void Update()
     {
+        if (!controlsEnabled)
+        {
+            throttleInput = 0f;
+            steeringInput = 0f;
+            isDrifting = false;
+            smoothedThrottleInput = 0f;
+            smoothedSteeringInput = 0f;
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.deltaTime * 10f);
+            }
+            UpdateWheelVisuals();
+            return;
+        }
+
         bool previousDrift = isDrifting;
 
         if (isPlayer)
@@ -342,11 +367,21 @@ public class KartController : MonoBehaviour
     private void FixedUpdate()
     {
         CheckGroundStatus();
+        UpdateWaypointTracking();
         ApplyMovementPhysics();
     }
 
     private void HandlePlayerInput()
     {
+        if (!controlsEnabled)
+        {
+            throttleInput = 0f;
+            steeringInput = 0f;
+            isDrifting = false;
+            jumpJustPressed = false;
+            return;
+        }
+
         float inputThrottle = 0f;
         float inputSteer = 0f;
 
@@ -394,6 +429,14 @@ public class KartController : MonoBehaviour
 
     private void HandleAIInput()
     {
+        if (!controlsEnabled)
+        {
+            throttleInput = 0f;
+            steeringInput = 0f;
+            isDrifting = false;
+            return;
+        }
+
         if (waypointCircuit == null || waypointCircuit.waypoints == null || waypointCircuit.waypoints.Length == 0)
         {
             throttleInput = 0f;
@@ -628,12 +671,6 @@ public class KartController : MonoBehaviour
             driftDirection = 0f;
         }
 
-        // Check if we reached the waypoint
-        float distanceToWaypoint = Vector3.Distance(transform.position, targetPos);
-        if (distanceToWaypoint < waypointThreshold)
-        {
-            currentWaypointIndex = (currentWaypointIndex + 1) % waypointCircuit.waypoints.Length;
-        }
     }
 
     private bool IsValidObstacle(RaycastHit hit)
@@ -656,6 +693,25 @@ public class KartController : MonoBehaviour
 
         bool isScenery = name.Contains("wood") || name.Contains("fence") || name.Contains("feno") || name.Contains("mapa") || name.Contains("wall") || name.Contains("colision") || name.Contains("collider");
         return isScenery;
+    }
+
+    private void UpdateWaypointTracking()
+    {
+        if (waypointCircuit == null || waypointCircuit.waypoints == null || waypointCircuit.waypoints.Length == 0)
+            return;
+
+        Vector3 targetPos = waypointCircuit.waypoints[currentWaypointIndex].position;
+        float distanceToWaypoint = Vector3.Distance(transform.position, targetPos);
+        if (distanceToWaypoint < waypointThreshold)
+        {
+            int nextIdx = (currentWaypointIndex + 1) % waypointCircuit.waypoints.Length;
+            if (nextIdx == 0 && currentWaypointIndex == waypointCircuit.waypoints.Length - 1)
+            {
+                currentLap++;
+                Debug.Log(gameObject.name + " completed lap! New Lap: " + currentLap);
+            }
+            currentWaypointIndex = nextIdx;
+        }
     }
 
     private void CheckGroundStatus()
@@ -1250,13 +1306,9 @@ public class KartController : MonoBehaviour
         hasStuntPerformed = false;
         stuntSpinTime = 0f;
 
-        // Update AI index to target the next one
-        if (!isPlayer)
-        {
-            currentWaypointIndex = nextIdx;
-            aiStuckTimer = 0f;
-            aiIsReversing = false;
-        }
+        currentWaypointIndex = nextIdx;
+        aiStuckTimer = 0f;
+        aiIsReversing = false;
 
         Debug.Log(gameObject.name + " respawned at waypoint: " + closestIdx);
     }
@@ -1266,5 +1318,38 @@ public class KartController : MonoBehaviour
     {
         currentWaypointIndex = 0;
         currentSpeed = 0f;
+        currentLap = 1;
+        currentPosition = 1;
+    }
+
+    public int CurrentWaypointIndex => currentWaypointIndex;
+
+    public float GetRaceProgress()
+    {
+        if (waypointCircuit == null || waypointCircuit.waypoints == null || waypointCircuit.waypoints.Length == 0)
+            return 0f;
+
+        int W = waypointCircuit.waypoints.Length;
+        int idx = currentWaypointIndex;
+        int prevIdx = (idx - 1 + W) % W;
+
+        if (waypointCircuit.waypoints[prevIdx] == null || waypointCircuit.waypoints[idx] == null)
+            return 0f;
+
+        Vector3 P = waypointCircuit.waypoints[prevIdx].position;
+        Vector3 N = waypointCircuit.waypoints[idx].position;
+
+        float D = Vector3.Distance(P, N);
+        if (D < 0.01f) D = 0.01f;
+        float d = Vector3.Distance(transform.position, N);
+        float fraction = Mathf.Clamp01(1f - (d / D));
+
+        float lapProgressIndex = idx;
+        if (idx == 0)
+        {
+            lapProgressIndex = W;
+        }
+
+        return (currentLap - 1) * W + lapProgressIndex + fraction;
     }
 }
