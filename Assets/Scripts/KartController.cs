@@ -1343,11 +1343,10 @@ public class KartController : MonoBehaviour
         }
 
         Transform targetWaypoint = waypointCircuit.waypoints[closestIdx];
+        Vector3 spawnPos = targetWaypoint.position + Vector3.up * 0.8f;
         
-        // Reposition
-        transform.position = targetWaypoint.position + Vector3.up * 0.8f;
-        
-        // Face the next waypoint
+        // Calculate rotation facing next waypoint
+        Quaternion spawnRot = targetWaypoint.rotation;
         int nextIdx = (closestIdx + 1) % waypointCircuit.waypoints.Length;
         if (waypointCircuit.waypoints[nextIdx] != null)
         {
@@ -1355,17 +1354,18 @@ public class KartController : MonoBehaviour
             lookDir.y = 0f;
             if (lookDir.sqrMagnitude > 0.001f)
             {
-                transform.rotation = Quaternion.LookRotation(lookDir, Vector3.up);
+                spawnRot = Quaternion.LookRotation(lookDir, Vector3.up);
             }
         }
-        else
-        {
-            transform.rotation = targetWaypoint.rotation;
-        }
-
-        // Reset physics
+        
+        // Reposition both transform AND Rigidbody directly to prevent Unity snapping/interpolation bugs
+        transform.position = spawnPos;
+        transform.rotation = spawnRot;
+        
         if (rb != null)
         {
+            rb.position = spawnPos;
+            rb.rotation = spawnRot;
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
         }
