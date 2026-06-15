@@ -7,14 +7,14 @@ using UnityEngine.SceneManagement;
 
 public class RaceManager : MonoBehaviour
 {
-    public enum RaceState { Countdown, Racing, Finished }
+    public enum RaceState { Intro, Countdown, Racing, Finished }
 
     [Header("Race Config")]
     public int totalLaps = 3;
     public float countdownDuration = 3f;
 
     [Header("State")]
-    public RaceState currentState = RaceState.Countdown;
+    public RaceState currentState = RaceState.Intro;
 
     private List<KartController> karts = new List<KartController>();
     private KartController playerKart;
@@ -29,6 +29,7 @@ public class RaceManager : MonoBehaviour
     private TextMeshProUGUI lapText;
     private TextMeshProUGUI leaderboardText;
     private TextMeshProUGUI finishWinnerText;
+    private TextMeshProUGUI introText;
 
     // Legacy UI Components
     private Text countdownTextLegacy;
@@ -36,11 +37,14 @@ public class RaceManager : MonoBehaviour
     private Text lapTextLegacy;
     private Text leaderboardTextLegacy;
     private Text finishWinnerTextLegacy;
+    private Text introTextLegacy;
 
     private GameObject finishPanel;
 
     private void Awake()
     {
+        currentState = RaceState.Intro;
+
         // 1. Find all karts in the scene
         karts = new List<KartController>(Object.FindObjectsByType<KartController>(FindObjectsSortMode.None));
         foreach (var kart in karts)
@@ -88,15 +92,56 @@ public class RaceManager : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(RaceCountdownRoutine());
+        // Karts start frozen, waiting in Intro state
+        foreach (var kart in karts)
+        {
+            kart.controlsEnabled = false;
+        }
     }
 
     private void Update()
     {
-        if (currentState == RaceState.Racing)
+        if (currentState == RaceState.Intro)
+        {
+            // Pulse the start text
+            float pulse = 1f + Mathf.PingPong(Time.time * 2f, 0.15f);
+            if (useLegacyUI)
+            {
+                if (introTextLegacy != null) introTextLegacy.transform.localScale = Vector3.one * pulse;
+            }
+            else
+            {
+                if (introText != null) introText.transform.localScale = Vector3.one * pulse;
+            }
+
+            // Detect space key press to start the race
+            if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                StartRaceCountdown();
+            }
+        }
+        else if (currentState == RaceState.Racing)
         {
             UpdateRaceProgress();
         }
+    }
+
+    public void StartRaceCountdown()
+    {
+        if (currentState != RaceState.Intro) return;
+        currentState = RaceState.Countdown;
+
+        if (introText != null) introText.gameObject.SetActive(false);
+        if (introTextLegacy != null) introTextLegacy.gameObject.SetActive(false);
+
+        // Tell Camera to snap to target and end intro flyby
+        CameraController cam = Object.FindAnyObjectByType<CameraController>();
+        if (cam != null)
+        {
+            cam.EndIntroMode();
+        }
+
+        StartCoroutine(RaceCountdownRoutine());
     }
 
     private IEnumerator RaceCountdownRoutine()
@@ -276,7 +321,16 @@ public class RaceManager : MonoBehaviour
         
         if (playerKart != null)
         {
-            playerKart.controlsEnabled = false;
+            playerKart.isPlayer = false; // Switch control to AI
+            playerKart.controlsEnabled = true; // Keep controls active so the AI can drive
+            playerKart.aiDifficulty = KartController.AIDifficulty.Medio;
+        }
+
+        // Activate cinematic camera mode
+        CameraController cam = Object.FindAnyObjectByType<CameraController>();
+        if (cam != null)
+        {
+            cam.StartCinemaMode(karts);
         }
 
         if (finishPanel != null)
@@ -334,6 +388,35 @@ public class RaceManager : MonoBehaviour
 
         Color panelBgColor = new Color(0.1f, 0.1f, 0.1f, 0.72f);
         Font legacyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+
+        // 0. INTRO PRESS KEY TO START TEXT (Center-Bottom)
+        GameObject introGo = new GameObject("IntroText");
+        introGo.transform.SetParent(canvasGo.transform, false);
+        RectTransform introRect = introGo.AddComponent<RectTransform>();
+        introRect.anchorMin = new Vector2(0.5f, 0.2f);
+        introRect.anchorMax = new Vector2(0.5f, 0.2f);
+        introRect.pivot = new Vector2(0.5f, 0.5f);
+        introRect.anchoredPosition = Vector2.zero;
+        introRect.sizeDelta = new Vector2(800, 150);
+
+        if (!useLegacyUI)
+        {
+            introText = introGo.AddComponent<TextMeshProUGUI>();
+            introText.fontSize = 32;
+            introText.alignment = TextAlignmentOptions.Center;
+            introText.color = Color.white;
+            introText.fontStyle = FontStyles.Bold;
+            introText.text = "PRESSIONE [ESPAÇO] PARA COMEÇAR";
+        }
+        else
+        {
+            introTextLegacy = introGo.AddComponent<Text>();
+            introTextLegacy.font = legacyFont;
+            introTextLegacy.fontSize = 28;
+            introTextLegacy.alignment = TextAnchor.MiddleCenter;
+            introTextLegacy.color = Color.white;
+            introTextLegacy.text = "PRESSIONE [ESPAÇO] PARA COMEÇAR";
+        }
 
         // 1. COUNTDOWN TEXT (Center Screen)
         GameObject countGo = new GameObject("CountdownText");
@@ -532,31 +615,34 @@ public class RaceManager : MonoBehaviour
         finishRect.sizeDelta = Vector2.zero;
         finishPanel.SetActive(false);
 
-        // Full Screen transparent black overlay
+        // Completely transparent full screen overlay so it doesn't block the view
         Image finishOverlayImg = finishPanel.AddComponent<Image>();
-        finishOverlayImg.color = new Color(0f, 0f, 0f, 0.85f);
+        finishOverlayImg.color = new Color(0f, 0f, 0f, 0f);
 
-        // Inner Box Container
+        // MessageBox Container positioned at the bottom center of the screen
         GameObject innerFinishGo = new GameObject("MessageBox");
         innerFinishGo.transform.SetParent(finishPanel.transform, false);
         RectTransform innerFinishRect = innerFinishGo.AddComponent<RectTransform>();
-        innerFinishRect.anchoredPosition = Vector2.zero;
-        innerFinishRect.sizeDelta = new Vector2(500, 400);
+        innerFinishRect.anchorMin = new Vector2(0.5f, 0f);
+        innerFinishRect.anchorMax = new Vector2(0.5f, 0f);
+        innerFinishRect.pivot = new Vector2(0.5f, 0f);
+        innerFinishRect.anchoredPosition = new Vector2(0, 50); // 50 pixels from bottom
+        innerFinishRect.sizeDelta = new Vector2(450, 180); // Compact size
         Image innerFinishImg = innerFinishGo.AddComponent<Image>();
-        innerFinishImg.color = new Color(0.15f, 0.15f, 0.15f, 0.95f);
+        innerFinishImg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f); // Clean semi-transparent dark panel
 
         // Title and Info
         GameObject winTextGo = new GameObject("WinnerText");
         winTextGo.transform.SetParent(innerFinishGo.transform, false);
         RectTransform winTextRect = winTextGo.AddComponent<RectTransform>();
-        winTextRect.anchorMin = new Vector2(0.05f, 0.35f);
+        winTextRect.anchorMin = new Vector2(0.05f, 0.45f);
         winTextRect.anchorMax = new Vector2(0.95f, 0.95f);
         winTextRect.sizeDelta = Vector2.zero;
 
         if (!useLegacyUI)
         {
             finishWinnerText = winTextGo.AddComponent<TextMeshProUGUI>();
-            finishWinnerText.fontSize = 28;
+            finishWinnerText.fontSize = 24;
             finishWinnerText.alignment = TextAlignmentOptions.Center;
             finishWinnerText.color = Color.white;
             finishWinnerText.text = "FIM DE CORRIDA!";
@@ -565,7 +651,7 @@ public class RaceManager : MonoBehaviour
         {
             finishWinnerTextLegacy = winTextGo.AddComponent<Text>();
             finishWinnerTextLegacy.font = legacyFont;
-            finishWinnerTextLegacy.fontSize = 24;
+            finishWinnerTextLegacy.fontSize = 20;
             finishWinnerTextLegacy.alignment = TextAnchor.MiddleCenter;
             finishWinnerTextLegacy.color = Color.white;
             finishWinnerTextLegacy.text = "FIM DE CORRIDA!";
@@ -575,8 +661,8 @@ public class RaceManager : MonoBehaviour
         GameObject restartBtnGo = new GameObject("RestartButton");
         restartBtnGo.transform.SetParent(innerFinishGo.transform, false);
         RectTransform restartBtnRect = restartBtnGo.AddComponent<RectTransform>();
-        restartBtnRect.anchorMin = new Vector2(0.2f, 0.1f);
-        restartBtnRect.anchorMax = new Vector2(0.8f, 0.28f);
+        restartBtnRect.anchorMin = new Vector2(0.15f, 0.08f);
+        restartBtnRect.anchorMax = new Vector2(0.85f, 0.42f);
         restartBtnRect.sizeDelta = Vector2.zero;
 
         Image btnImg = restartBtnGo.AddComponent<Image>();
@@ -595,7 +681,7 @@ public class RaceManager : MonoBehaviour
         if (!useLegacyUI)
         {
             var btnText = btnTextGo.AddComponent<TextMeshProUGUI>();
-            btnText.fontSize = 22;
+            btnText.fontSize = 20;
             btnText.alignment = TextAlignmentOptions.Center;
             btnText.color = Color.white;
             btnText.fontStyle = FontStyles.Bold;
@@ -605,7 +691,7 @@ public class RaceManager : MonoBehaviour
         {
             var btnText = btnTextGo.AddComponent<Text>();
             btnText.font = legacyFont;
-            btnText.fontSize = 18;
+            btnText.fontSize = 16;
             btnText.alignment = TextAnchor.MiddleCenter;
             btnText.color = Color.white;
             btnText.text = "CORRER DE NOVO";

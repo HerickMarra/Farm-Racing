@@ -83,6 +83,7 @@ public class KartController : MonoBehaviour
     private bool isDrifting;
     private bool wasDrifting;
     private int currentWaypointIndex = 0;
+    private int lastClosestIdx = -1;
     private bool isGrounded;
     private float currentSpeed = 0f;
     private Vector3 groundNormal = Vector3.up;
@@ -95,6 +96,11 @@ public class KartController : MonoBehaviour
     private float aiOvertakeSideOffset = 0f;
     private float aiOvertakeTimer = 0f;
     private float aiOvertakeDirection = 1f; // 1 = right, -1 = left
+    private float aiWaypointTimeoutTimer = 0f;
+    private int aiReverseCount = 0;
+    private Vector3 lastStuckCheckPosition;
+    private float stuckPositionTimer = 0f;
+    private float accumulatedStuckTime = 0f;
 
     // Cache variables
     private KartController playerKartCached;
@@ -232,6 +238,7 @@ public class KartController : MonoBehaviour
         if (rearRightWheel != null) { rrInitialRot = rearRightWheel.localRotation; rrInitialPos = rearRightWheel.localPosition; }
 
         smoothedGroundNormal = Vector3.up;
+        lastStuckCheckPosition = transform.position;
     }
 
     private void resultLog(string message)
@@ -445,6 +452,30 @@ public class KartController : MonoBehaviour
             return;
         }
 
+        // Check if wiggling/stuck in the same small 2.2m area
+        stuckPositionTimer += Time.deltaTime;
+        if (stuckPositionTimer >= 1.5f)
+        {
+            stuckPositionTimer = 0f;
+            float distanceMoved = Vector3.Distance(transform.position, lastStuckCheckPosition);
+            if (distanceMoved < 2.2f)
+            {
+                accumulatedStuckTime += 1.5f;
+            }
+            else
+            {
+                accumulatedStuckTime = Mathf.Max(0f, accumulatedStuckTime - 1.0f); // decay slowly
+            }
+            lastStuckCheckPosition = transform.position;
+        }
+
+        if (accumulatedStuckTime >= 5.0f)
+        {
+            Debug.Log(gameObject.name + " detected stuck in same area (wiggling/stuck cycle). Respawning.");
+            RespawnAtClosestWaypoint();
+            return;
+        }
+
         Vector3 targetPos = waypointCircuit.waypoints[currentWaypointIndex].position;
 
         // 1. Stuck & Obstacle detection (Reverse logic)
@@ -460,8 +491,15 @@ public class KartController : MonoBehaviour
 
         // Auto-respawn if stuck for too long, fell off, or drifted too far
         float distToTargetWp = Vector3.Distance(transform.position, targetPos);
-        if (aiStuckTimer > aiMaxStuckTime || transform.position.y < -10f || distToTargetWp > 65f)
+        
+        // Stuck checks: timeout or reverse loops
+        aiWaypointTimeoutTimer += Time.deltaTime;
+        bool isStuckTimeout = aiWaypointTimeoutTimer > 12.0f;
+        bool isReverseLoopStuck = aiReverseCount >= 3;
+
+        if (aiStuckTimer > aiMaxStuckTime || transform.position.y < -10f || distToTargetWp > 65f || isStuckTimeout || isReverseLoopStuck)
         {
+            Debug.Log(gameObject.name + " detected stuck. Timeout: " + isStuckTimeout + ", Loop: " + isReverseLoopStuck + ". Respawning.");
             RespawnAtClosestWaypoint();
             return;
         }
@@ -471,6 +509,7 @@ public class KartController : MonoBehaviour
             aiIsReversing = true;
             aiReverseDuration = Random.Range(1.2f, 1.8f);
             aiStuckTimer = 0f;
+            aiReverseCount++; // Increment reverse attempt count
         }
 
         if (aiIsReversing)
@@ -700,18 +739,52 @@ public class KartController : MonoBehaviour
         if (waypointCircuit == null || waypointCircuit.waypoints == null || waypointCircuit.waypoints.Length == 0)
             return;
 
-        Vector3 targetPos = waypointCircuit.waypoints[currentWaypointIndex].position;
-        float distanceToWaypoint = Vector3.Distance(transform.position, targetPos);
-        if (distanceToWaypoint < waypointThreshold)
+        int W = waypointCircuit.waypoints.Length;
+
+        // Find the closest waypoint to our current position
+        float closestDist = float.MaxValue;
+        int closestIdx = 0;
+        for (int i = 0; i < W; i++)
         {
-            int nextIdx = (currentWaypointIndex + 1) % waypointCircuit.waypoints.Length;
-            if (nextIdx == 0 && currentWaypointIndex == waypointCircuit.waypoints.Length - 1)
+            if (waypointCircuit.waypoints[i] == null) continue;
+            float d = Vector3.Distance(transform.position, waypointCircuit.waypoints[i].position);
+            if (d < closestDist)
+            {
+                closestDist = d;
+                closestIdx = i;
+            }
+        }
+
+        // Initialize lastClosestIdx on first run
+        if (lastClosestIdx == -1)
+        {
+            lastClosestIdx = closestIdx;
+        }
+
+        // Detect lap crossing: transitioning from the end of the track to the beginning
+        if (closestIdx != lastClosestIdx)
+        {
+            float thresholdHigh = W * 0.7f;
+            float thresholdLow = W * 0.3f;
+
+            // Forward crossing: from last 30% of waypoints to first 30% of waypoints
+            if (lastClosestIdx >= thresholdHigh && closestIdx <= thresholdLow)
             {
                 currentLap++;
                 Debug.Log(gameObject.name + " completed lap! New Lap: " + currentLap);
             }
-            currentWaypointIndex = nextIdx;
+
+            lastClosestIdx = closestIdx;
+
+            if (!isPlayer)
+            {
+                aiWaypointTimeoutTimer = 0f;
+                aiReverseCount = 0;
+            }
         }
+
+        // Target waypoint is always the one ahead of the closest one
+        currentWaypointIndex = (closestIdx + 1) % W;
     }
 
     private void CheckGroundStatus()
@@ -1309,6 +1382,11 @@ public class KartController : MonoBehaviour
         currentWaypointIndex = nextIdx;
         aiStuckTimer = 0f;
         aiIsReversing = false;
+        aiWaypointTimeoutTimer = 0f;
+        aiReverseCount = 0;
+        lastStuckCheckPosition = transform.position;
+        stuckPositionTimer = 0f;
+        accumulatedStuckTime = 0f;
 
         Debug.Log(gameObject.name + " respawned at waypoint: " + closestIdx);
     }
@@ -1344,12 +1422,8 @@ public class KartController : MonoBehaviour
         float d = Vector3.Distance(transform.position, N);
         float fraction = Mathf.Clamp01(1f - (d / D));
 
-        float lapProgressIndex = idx;
-        if (idx == 0)
-        {
-            lapProgressIndex = W;
-        }
+        float pathPosition = prevIdx + fraction;
 
-        return (currentLap - 1) * W + lapProgressIndex + fraction;
+        return (currentLap - 1) * W + pathPosition;
     }
 }
