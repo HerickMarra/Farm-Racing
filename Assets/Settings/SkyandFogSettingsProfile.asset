@@ -258,13 +258,13 @@ MonoBehaviour:
     m_Value: 0
   intensity:
     m_OverrideState: 1
-    m_Value: 1.24
+    m_Value: 2.18
   directLightingStrength:
     m_OverrideState: 1
-    m_Value: 0.319
+    m_Value: 0.589
   radius:
     m_OverrideState: 1
-    m_Value: 4.08
+    m_Value: 4.58
   spatialBilateralAggressiveness:
     m_OverrideState: 1
     m_Value: 0.15
@@ -364,6 +364,7 @@ MonoBehaviour:
   - {fileID: 4385425029446528459}
   - {fileID: 472590237261511071}
   - {fileID: -401025085724046536}
+  - {fileID: 6650680240992726685}
 --- !u!114 &472590237261511071
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -388,7 +389,7 @@ MonoBehaviour:
     m_Value: {x: 0.5, y: 0.5}
   intensity:
     m_OverrideState: 1
-    m_Value: 0.337
+    m_Value: 0.237
   smoothness:
     m_OverrideState: 1
     m_Value: 0.2
@@ -494,6 +495,34 @@ MonoBehaviour:
   m_HighQualityFiltering:
     m_OverrideState: 1
     m_Value: 1
+--- !u!114 &6650680240992726685
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b8bcdf71d7fafa419fca1ed162f5fc9, type: 3}
+  m_Name: ColorAdjustments
+  m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.ColorAdjustments
+  active: 1
+  postExposure:
+    m_OverrideState: 1
+    m_Value: 1
+  contrast:
+    m_OverrideState: 1
+    m_Value: 0
+  colorFilter:
+    m_OverrideState: 1
+    m_Value: {r: 1, g: 1, b: 1, a: 1}
+  hueShift:
+    m_OverrideState: 1
+    m_Value: 0
+  saturation:
+    m_OverrideState: 1
+    m_Value: 0
 --- !u!114 &7642060734654139733
 MonoBehaviour:
   m_ObjectHideFlags: 3

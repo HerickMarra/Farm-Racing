@@ -452,13 +452,20 @@ public class KartController : MonoBehaviour
             return;
         }
 
-        // Check if wiggling/stuck in the same small 2.2m area
+        float absSpeed = rb != null ? rb.linearVelocity.magnitude : Mathf.Abs(currentSpeed);
+        if (absSpeed > 4.5f)
+        {
+            aiWaypointTimeoutTimer = 0f;
+            aiReverseCount = 0;
+        }
+
+        // Check if wiggling/stuck in the same small 3.0m area (net displacement)
         stuckPositionTimer += Time.deltaTime;
         if (stuckPositionTimer >= 1.5f)
         {
             stuckPositionTimer = 0f;
             float distanceMoved = Vector3.Distance(transform.position, lastStuckCheckPosition);
-            if (distanceMoved < 2.2f)
+            if (distanceMoved < 3.0f)
             {
                 accumulatedStuckTime += 1.5f;
             }
@@ -469,7 +476,7 @@ public class KartController : MonoBehaviour
             lastStuckCheckPosition = transform.position;
         }
 
-        if (accumulatedStuckTime >= 5.0f)
+        if (accumulatedStuckTime >= 4.0f)
         {
             Debug.Log(gameObject.name + " detected stuck in same area (wiggling/stuck cycle). Respawning.");
             RespawnAtClosestWaypoint();
@@ -478,15 +485,14 @@ public class KartController : MonoBehaviour
 
         Vector3 targetPos = waypointCircuit.waypoints[currentWaypointIndex].position;
 
-        // 1. Stuck & Obstacle detection (Reverse logic)
-        float forwardSpeed = rb != null ? Vector3.Dot(rb.linearVelocity, transform.forward) : 0f;
-        if (isGrounded && forwardSpeed < 0.8f && throttleInput > 0.1f)
+        // 1. Stuck & Obstacle detection (handles forward, reverse, and wiggling)
+        if (isGrounded && absSpeed < 1.2f && Mathf.Abs(throttleInput) > 0.15f)
         {
             aiStuckTimer += Time.deltaTime;
         }
         else
         {
-            aiStuckTimer = Mathf.Max(0f, aiStuckTimer - Time.deltaTime * 2f);
+            aiStuckTimer = Mathf.Max(0f, aiStuckTimer - Time.deltaTime * 0.6f); // Decay slowly so shifting/transitional states don't wipe progress
         }
 
         // Auto-respawn if stuck for too long, fell off, or drifted too far
@@ -494,22 +500,22 @@ public class KartController : MonoBehaviour
         
         // Stuck checks: timeout or reverse loops
         aiWaypointTimeoutTimer += Time.deltaTime;
-        bool isStuckTimeout = aiWaypointTimeoutTimer > 12.0f;
-        bool isReverseLoopStuck = aiReverseCount >= 3;
+        bool isStuckTimeout = aiWaypointTimeoutTimer > 10.0f;
+        bool isReverseLoopStuck = aiReverseCount >= 2;
 
         if (aiStuckTimer > aiMaxStuckTime || transform.position.y < -10f || distToTargetWp > 65f || isStuckTimeout || isReverseLoopStuck)
         {
-            Debug.Log(gameObject.name + " detected stuck. Timeout: " + isStuckTimeout + ", Loop: " + isReverseLoopStuck + ". Respawning.");
+            Debug.Log(gameObject.name + " detected stuck. Timeout: " + isStuckTimeout + ", Loop: " + isReverseLoopStuck + ", ReverseCount: " + aiReverseCount + ". Respawning.");
             RespawnAtClosestWaypoint();
             return;
         }
 
-        if (aiStuckTimer > 1.0f && !aiIsReversing)
+        if (aiStuckTimer > 2.0f && !aiIsReversing)
         {
             aiIsReversing = true;
             aiReverseDuration = Random.Range(1.2f, 1.8f);
-            aiStuckTimer = 0f;
-            aiReverseCount++; // Increment reverse attempt count
+            aiStuckTimer = 0.5f; // Keep some stuck history so it triggers respawn faster if reverse fails
+            aiReverseCount++;
         }
 
         if (aiIsReversing)
@@ -775,12 +781,6 @@ public class KartController : MonoBehaviour
             }
 
             lastClosestIdx = closestIdx;
-
-            if (!isPlayer)
-            {
-                aiWaypointTimeoutTimer = 0f;
-                aiReverseCount = 0;
-            }
         }
 
         // Target waypoint is always the one ahead of the closest one
