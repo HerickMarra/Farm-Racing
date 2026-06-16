@@ -196,6 +196,7 @@ public class KartController : MonoBehaviour
 
     private float driftBasePitch = 1.0f;
     private float boostBasePitch = 1.0f;
+    private float aiBoostCooldownTimer = 0f;
 
     // Input Actions (New Input System)
     private InputAction moveAction;
@@ -349,9 +350,6 @@ public class KartController : MonoBehaviour
                 {
                     driftDirection = steeringInput > 0f ? 1f : -1f;
                 }
-
-                // Charge the boost score meter during active drift
-                currentBoostScore = Mathf.Min(currentBoostScore + boostChargeRate * Time.deltaTime, maxBoostScore);
             }
             else
             {
@@ -408,6 +406,12 @@ public class KartController : MonoBehaviour
         else
         {
             HandleAIInput();
+        }
+
+        // Charge the boost score meter during active drift for both Player and AI
+        if (isDrifting)
+        {
+            currentBoostScore = Mathf.Min(currentBoostScore + boostChargeRate * Time.deltaTime, maxBoostScore);
         }
 
         UpdateWheelVisuals();
@@ -570,6 +574,22 @@ public class KartController : MonoBehaviour
             isDrifting = false;
             return;
         }
+
+        // Countdown AI boost cooldown
+        if (aiBoostCooldownTimer > 0f)
+        {
+            aiBoostCooldownTimer -= Time.deltaTime;
+        }
+
+        // Passive boost charging for AI to ensure they get to use it on straights
+        float passiveCharge = 0f;
+        if (aiDifficulty == AIDifficulty.Facil) passiveCharge = 15f;
+        else if (aiDifficulty == AIDifficulty.Medio) passiveCharge = 15f;
+        else if (aiDifficulty == AIDifficulty.Dificil) passiveCharge = 30f;
+        else if (aiDifficulty == AIDifficulty.Adaptavel) passiveCharge = 25f;
+        else if (aiDifficulty >= AIDifficulty.Competitivo) passiveCharge = 40f; // All competitive modes
+
+        currentBoostScore = Mathf.Min(currentBoostScore + passiveCharge * Time.deltaTime, maxBoostScore);
 
         if (waypointCircuit == null || waypointCircuit.waypoints == null || waypointCircuit.waypoints.Length == 0)
         {
@@ -1076,6 +1096,76 @@ public class KartController : MonoBehaviour
             driftDirection = 0f;
         }
 
+        // AI Boost Activation Logic
+        if (currentBoostScore >= boostActivateCost && aiBoostCooldownTimer <= 0f && isGrounded && throttleInput > 0.8f && nitroBoostTimer <= 0f)
+        {
+            // Evaluate if we are on a straight line to use the boost safely
+            bool isStraightLine = false;
+            if (waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
+            {
+                int W = waypointCircuit.waypoints.Length;
+                int currentWp = currentWaypointIndex;
+                int nextWp = (currentWp + 1) % W;
+                int afterNextWp = (nextWp + 1) % W;
+
+                if (waypointCircuit.waypoints[currentWp] != null && waypointCircuit.waypoints[nextWp] != null && waypointCircuit.waypoints[afterNextWp] != null)
+                {
+                    Vector3 toCurrentWp = (waypointCircuit.waypoints[currentWp].position - transform.position).normalized;
+                    Vector3 toNextWp = (waypointCircuit.waypoints[nextWp].position - waypointCircuit.waypoints[currentWp].position).normalized;
+                    Vector3 toAfterNextWp = (waypointCircuit.waypoints[afterNextWp].position - waypointCircuit.waypoints[nextWp].position).normalized;
+
+                    float angle1 = Vector3.Angle(transform.forward, toCurrentWp);
+                    float angle2 = Vector3.Angle(toCurrentWp, toNextWp);
+                    float angle3 = Vector3.Angle(toNextWp, toAfterNextWp);
+
+                    // If all angle differences are small, it's a straight line section!
+                    // Let's also verify that we aren't steering heavily right now (Mathf.Abs(steeringInput) < 0.25f)
+                    if (angle1 < 22f && angle2 < 20f && angle3 < 20f && Mathf.Abs(steeringInput) < 0.25f)
+                    {
+                        isStraightLine = true;
+                    }
+                }
+            }
+
+            // Decide to boost based on difficulty and strategic conditions
+            if (isStraightLine)
+            {
+                bool shouldBoost = false;
+                
+                // Diff-based usage probability and conditions
+                if (aiDifficulty == AIDifficulty.Facil)
+                {
+                    // Easy AI: 10% chance to boost on straight line, long cooldown
+                    if (Random.value < 0.10f)
+                    {
+                        shouldBoost = true;
+                        aiBoostCooldownTimer = Random.Range(12f, 18f);
+                    }
+                }
+                else if (aiDifficulty == AIDifficulty.Medio)
+                {
+                    // Medium AI: 40% chance, medium cooldown
+                    if (Random.value < 0.40f)
+                    {
+                        shouldBoost = true;
+                        aiBoostCooldownTimer = Random.Range(6f, 10f);
+                    }
+                }
+                else
+                {
+                    // Hard / Competitive / Adaptive AI: 85% chance to boost immediately when on a straight line
+                    shouldBoost = true;
+                    aiBoostCooldownTimer = Random.Range(3.5f, 6.0f);
+                }
+
+                if (shouldBoost)
+                {
+                    currentBoostScore -= boostActivateCost;
+                    nitroBoostTimer = 2.0f;
+                    Debug.Log(gameObject.name + " (" + aiDifficulty + ") ACTIVATED AI NITRO BOOST on straight line! Remaining: " + currentBoostScore);
+                }
+            }
+        }
     }
 
     private bool IsValidObstacle(RaycastHit hit)
