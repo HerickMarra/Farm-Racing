@@ -26,8 +26,52 @@ public class KartController : MonoBehaviour
     public float driftSteerMultiplier = 1.0f;
     [Tooltip("Cooldown between drift hops to prevent rapid jumping.")]
     public float hopCooldown = 1.0f;
+    
+    [Header("Drift Tuning (Player Only)")]
+    [Tooltip("Base visual yaw rotation of the kart chassi during drift.")]
+    public float driftVisualYawBase = 35f;
+    [Tooltip("Steering influence on the visual yaw rotation of the kart during drift.")]
+    public float driftVisualYawSteerInfluence = 8f;
+    [Tooltip("How fast the kart visuals orient/snap to the drift angle.")]
+    public float driftVisualYawSpeed = 220f;
+    [Tooltip("Physical steering/turning multiplier during drift for the player.")]
+    public float driftPhysicalSteerLimit = 0.58f;
+    [Tooltip("Base sideways sliding slip factor during drift.")]
+    public float driftSlipFactor = 0.75f;
+    [Tooltip("Steering influence on the sideways sliding slip factor during drift.")]
+    public float driftSlipSteerInfluence = 0.15f;
 
-    public enum AIDifficulty { Facil, Medio, Dificil, Adaptavel, Competitivo }
+    [Header("Effects Settings")]
+    [Tooltip("Particle systems to play during drift.")]
+    public ParticleSystem[] driftParticles;
+    [Tooltip("Particle systems to play during boost/nitro.")]
+    public ParticleSystem[] boostParticles;
+
+    [Header("Boost Meter Settings")]
+    [Tooltip("Maximum boost score capacity.")]
+    public float maxBoostScore = 1000f;
+    [Tooltip("Current accumulated boost score.")]
+    public float currentBoostScore = 0f;
+    [Tooltip("How much boost score is charged per second of drifting.")]
+    public float boostChargeRate = 250f;
+    [Tooltip("How much boost score is consumed to trigger a single 2-second Nitro Boost.")]
+    public float boostActivateCost = 300f;
+
+    [Header("Audio Settings")]
+    [Tooltip("Audio source to play looping tire screech sound during drift.")]
+    public AudioSource driftAudioSource;
+    [Tooltip("Audio source to play looping/one-shot sound when boost is active.")]
+    public AudioSource boostAudioSource;
+    [Tooltip("Target volume for the drift screech sound.")]
+    public float maxDriftVolume = 0.8f;
+    [Tooltip("How fast the drift sound volume fades in and out.")]
+    public float driftFadeSpeed = 4f;
+    [Tooltip("Target volume for the boost sound.")]
+    public float maxBoostVolume = 0.8f;
+    [Tooltip("How fast the boost sound volume fades in and out.")]
+    public float boostFadeSpeed = 4f;
+
+    public enum AIDifficulty { Facil, Medio, Dificil, Adaptavel, Competitivo, CompetitivoB, CompetitivoA, CompetitivoF }
 
     [Header("AI Settings")]
     [Tooltip("Nivel de dificuldade da IA.")]
@@ -110,6 +154,7 @@ public class KartController : MonoBehaviour
     private float driftDuration = 0f;
     private float activeBoostTimer = 0f;
     private float activeBoostMultiplier = 1f;
+    private float nitroBoostTimer = 0f;
 
     // Visual Drift variables
     private float driftDirection = 0f; // -1 = Left, 1 = Right
@@ -128,6 +173,10 @@ public class KartController : MonoBehaviour
 
     // Respawn variables
     private float respawnHoldTimer = 0f;
+    private float mindsetSpeedBoost = 1.0f;
+    private float mindsetAccelBoost = 1.0f;
+    private Vector3 stuckRadiusAnchor;
+    private float stuckRadiusTimer = 0f;
 
     // Smoothed input state
     private float smoothedSteeringInput = 0f;
@@ -145,6 +194,9 @@ public class KartController : MonoBehaviour
     private Vector3 rrInitialPos;
     private float cumulativeRollAngle = 0f;
 
+    private float driftBasePitch = 1.0f;
+    private float boostBasePitch = 1.0f;
+
     // Input Actions (New Input System)
     private InputAction moveAction;
     private InputAction driftAction;
@@ -152,6 +204,8 @@ public class KartController : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        if (driftAudioSource != null) driftBasePitch = driftAudioSource.pitch;
+        if (boostAudioSource != null) boostBasePitch = boostAudioSource.pitch;
         
         // Ensure Rigidbody is configured for arcade racing
         rb.useGravity = true;
@@ -239,6 +293,24 @@ public class KartController : MonoBehaviour
 
         smoothedGroundNormal = Vector3.up;
         lastStuckCheckPosition = transform.position;
+        stuckRadiusAnchor = transform.position;
+        stuckRadiusTimer = 0f;
+
+        // Stop all particles at start to ensure they begin in an inactive state
+        if (driftParticles != null)
+        {
+            foreach (var ps in driftParticles)
+            {
+                if (ps != null) ps.Stop();
+            }
+        }
+        if (boostParticles != null)
+        {
+            foreach (var ps in boostParticles)
+            {
+                if (ps != null) ps.Stop();
+            }
+        }
     }
 
     private void resultLog(string message)
@@ -273,13 +345,17 @@ public class KartController : MonoBehaviour
             if (isDrifting)
             {
                 driftDuration += Time.deltaTime;
-                if (driftDirection == 0f && steeringInput != 0f)
+                if (steeringInput != 0f)
                 {
                     driftDirection = steeringInput > 0f ? 1f : -1f;
                 }
+
+                // Charge the boost score meter during active drift
+                currentBoostScore = Mathf.Min(currentBoostScore + boostChargeRate * Time.deltaTime, maxBoostScore);
             }
             else
             {
+                /* Temporarily disabled drift boost as requested
                 if (previousDrift && driftDuration > 0.6f)
                 {
                     if (driftDuration >= 1.5f)
@@ -295,6 +371,7 @@ public class KartController : MonoBehaviour
                         Debug.Log("MINI DRIFT BOOST ACTIVATED!");
                     }
                 }
+                */
                 driftDuration = 0f;
                 driftDirection = 0f;
             }
@@ -334,6 +411,8 @@ public class KartController : MonoBehaviour
         }
 
         UpdateWheelVisuals();
+        UpdateParticles();
+        UpdateAudio();
     }
 
     private void LateUpdate()
@@ -343,18 +422,34 @@ public class KartController : MonoBehaviour
             // Calculate a centrifugal outward lean/roll and acceleration pitch
             float targetRoll = -smoothedSteeringInput * bodyLeanAmount;
             float targetPitch = (smoothedThrottleInput > 0.05f ? 2f : (smoothedThrottleInput < -0.05f ? -4f : 0f));
-
+            
             // Smoothly interpolate drift angle (Y-axis rotation of body)
             float targetYaw = 0f;
             if (isDrifting && driftDirection != 0f)
             {
                 // Face the chassi into the turn while sliding outwards
-                targetYaw = driftDirection * 28f;
+                // Dynamic drift yaw angle
+                float steerInfluence = steeringInput * driftDirection; // ranges from -1 (counter-steer) to 1 (steer-in)
+                float baseAngle = isPlayer ? driftVisualYawBase : 32f;
+                
+                if (isPlayer)
+                {
+                    bool isHoldingSpace = false;
+                    if (driftAction != null && driftAction.enabled) isHoldingSpace = driftAction.IsPressed();
+                    if (Keyboard.current != null) isHoldingSpace = isHoldingSpace || Keyboard.current.spaceKey.isPressed;
+                    
+                    if (!isHoldingSpace)
+                    {
+                        baseAngle *= 0.65f; // Reduce visual yaw angle when Space is released
+                    }
+                }
+                
+                targetYaw = driftDirection * (baseAngle + steerInfluence * driftVisualYawSteerInfluence);
                 
                 // Aggressive inwards body lean during drift (locked to drift direction, ignoring counter-steer)
                 targetRoll = -driftDirection * bodyLeanAmount * 1.5f;
             }
-            driftYawOffset = Mathf.MoveTowards(driftYawOffset, targetYaw, Time.deltaTime * 140f);
+            driftYawOffset = Mathf.MoveTowards(driftYawOffset, targetYaw, Time.deltaTime * driftVisualYawSpeed);
 
             Quaternion targetLocalRot = Quaternion.Euler(targetPitch, driftYawOffset, targetRoll);
 
@@ -429,9 +524,41 @@ public class KartController : MonoBehaviour
         {
             inputDrift = inputDrift || Keyboard.current.spaceKey.isPressed;
             jumpJustPressed = jumpJustPressed || Keyboard.current.spaceKey.wasPressedThisFrame;
+
+            if (Keyboard.current.leftShiftKey.wasPressedThisFrame || Keyboard.current.rightShiftKey.wasPressedThisFrame)
+            {
+                if (currentBoostScore >= boostActivateCost)
+                {
+                    currentBoostScore -= boostActivateCost;
+                    nitroBoostTimer = 2.0f;
+                    Debug.Log("NITRO BOOST ACTIVATED! Remaining Meter: " + currentBoostScore);
+                }
+                else
+                {
+                    Debug.Log("Not enough boost score! Cost: " + boostActivateCost + ", Current: " + currentBoostScore);
+                }
+            }
         }
 
-        isDrifting = inputDrift && Mathf.Abs(steeringInput) > 0.15f && isGrounded;
+        bool isSteeringActively = Mathf.Abs(steeringInput) > 0.15f;
+        if (isGrounded)
+        {
+            if (!isDrifting)
+            {
+                // To start the drift, we need to press Space (inputDrift) AND steer actively
+                isDrifting = inputDrift && isSteeringActively;
+            }
+            else
+            {
+                // Once drifting, we stay in drift as long as we are still steering, 
+                // regardless of whether Space is released!
+                isDrifting = isSteeringActively;
+            }
+        }
+        else
+        {
+            isDrifting = false;
+        }
     }
 
     private void HandleAIInput()
@@ -453,34 +580,86 @@ public class KartController : MonoBehaviour
         }
 
         float absSpeed = rb != null ? rb.linearVelocity.magnitude : Mathf.Abs(currentSpeed);
+        
+        // Determine AI mindset dynamically based on race positions
+        int totalKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None).Length;
+        mindsetSpeedBoost = 1.0f;
+        mindsetAccelBoost = 1.0f;
+
+        if (currentPosition == 1) // First place - Defending Lead
+        {
+            // "Estou em primeiro preciso ficar ligado no segundo lugar pra ele não me ultrapassar"
+            KartController secondPlaceKart = null;
+            KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+            foreach (var k in allKarts)
+            {
+                if (k.currentPosition == 2)
+                {
+                    secondPlaceKart = k;
+                    break;
+                }
+            }
+
+            if (secondPlaceKart != null)
+            {
+                float distToSecond = Vector3.Distance(transform.position, secondPlaceKart.transform.position);
+                if (distToSecond < 8.0f)
+                {
+                    float secondSpeed = secondPlaceKart.rb != null ? secondPlaceKart.rb.linearVelocity.magnitude : secondPlaceKart.currentSpeed;
+                    mindsetSpeedBoost = Mathf.Max(1.0f, (secondSpeed + 2.0f) / maxSpeed);
+                    mindsetAccelBoost = 1.25f;
+
+                    // Block: shift target position to cover the line of the chasing kart
+                    Vector3 localSecondPos = transform.InverseTransformPoint(secondPlaceKart.transform.position);
+                    if (localSecondPos.z < 0f)
+                    {
+                        aiOvertakeSideOffset = Mathf.Clamp(localSecondPos.x, -2.0f, 2.0f);
+                        aiOvertakeTimer = 0.4f;
+                    }
+                }
+            }
+        }
+        else if (currentPosition == 2) // Second place - Chasing Leader
+        {
+            // "Estou em segundo mas posso ficar em primeiro"
+            mindsetSpeedBoost = 1.10f; // 10% faster top speed
+            mindsetAccelBoost = 1.20f; // 20% punchier acceleration
+        }
+        else if (currentPosition == totalKarts && totalKarts > 1) // Last place - Catch Up
+        {
+            // "Preciso acelerar estou em ultimo"
+            mindsetSpeedBoost = 1.16f; // 16% faster top speed
+            mindsetAccelBoost = 1.25f; // 25% faster acceleration
+        }
+        else // Middle positions - Maintaining
+        {
+            // "Estou em uma posição boa preciso manter"
+            mindsetSpeedBoost = 1.02f;
+            mindsetAccelBoost = 1.05f;
+        }
         if (absSpeed > 4.5f)
         {
             aiWaypointTimeoutTimer = 0f;
             aiReverseCount = 0;
         }
 
-        // Check if wiggling/stuck in the same small 3.0m area (net displacement)
-        stuckPositionTimer += Time.deltaTime;
-        if (stuckPositionTimer >= 1.5f)
+        // Radius-based stuck check: if the AI stays inside a 12-meter radius for more than 4.5 seconds, it is stuck
+        float distanceFromAnchor = Vector3.Distance(transform.position, stuckRadiusAnchor);
+        if (distanceFromAnchor > 12.0f)
         {
-            stuckPositionTimer = 0f;
-            float distanceMoved = Vector3.Distance(transform.position, lastStuckCheckPosition);
-            if (distanceMoved < 3.0f)
-            {
-                accumulatedStuckTime += 1.5f;
-            }
-            else
-            {
-                accumulatedStuckTime = Mathf.Max(0f, accumulatedStuckTime - 1.0f); // decay slowly
-            }
-            lastStuckCheckPosition = transform.position;
+            // Moved outside the stuck zone, update anchor and reset timer
+            stuckRadiusAnchor = transform.position;
+            stuckRadiusTimer = 0f;
         }
-
-        if (accumulatedStuckTime >= 4.0f)
+        else
         {
-            Debug.Log(gameObject.name + " detected stuck in same area (wiggling/stuck cycle). Respawning.");
-            RespawnAtClosestWaypoint();
-            return;
+            stuckRadiusTimer += Time.deltaTime;
+            if (stuckRadiusTimer >= 4.5f)
+            {
+                Debug.Log(gameObject.name + " stuck in a 12m radius for 4.5 seconds. Respawning.");
+                RespawnAtClosestWaypoint();
+                return;
+            }
         }
 
         Vector3 targetPos = waypointCircuit.waypoints[currentWaypointIndex].position;
@@ -532,58 +711,91 @@ public class KartController : MonoBehaviour
             return;
         }
 
-        // 2. Overtaking & Obstacle Avoidance (3-way Whiskers)
+        // 2. Overtaking & Obstacle Avoidance (Coordinate check for karts + Whiskers for scenery)
         aiOvertakeTimer -= Time.deltaTime;
         if (aiOvertakeTimer <= 0f)
         {
             aiOvertakeSideOffset = 0f;
             
-            // Cast three whiskers forward (Center, Left, Right)
-            Vector3 centerRayStart = transform.position + Vector3.up * 0.85f;
-            Vector3 leftRayStart = centerRayStart - transform.right * 0.5f;
-            Vector3 rightRayStart = centerRayStart + transform.right * 0.5f;
-            
-            float checkDistance = 9.0f;
-            RaycastHit hit;
-            bool hitObstacle = false;
-            float obstacleOffsetDir = 0f;
-
-            // Center sensor
-            if (Physics.Raycast(centerRayStart, transform.forward, out hit, checkDistance))
+            // A. Check for other karts blocking us (NPCs or Player)
+            KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+            bool foundKartToOvertake = false;
+            foreach (var other in allKarts)
             {
-                if (IsValidObstacle(hit))
+                if (other == this) continue;
+
+                Vector3 toOther = other.transform.position - transform.position;
+                float distanceToOther = toOther.magnitude;
+
+                // Check karts directly ahead in a 12-meter window
+                if (distanceToOther > 1.2f && distanceToOther < 12.0f)
                 {
-                    hitObstacle = true;
-                    Vector3 localHitPoint = transform.InverseTransformPoint(hit.point);
-                    obstacleOffsetDir = localHitPoint.x >= 0f ? -1.3f : 1.3f;
+                    Vector3 localPosOfOther = transform.InverseTransformPoint(other.transform.position);
+                    
+                    // If the kart is ahead (z > 0.5) and laterally in our lane (x within 2.5 meters)
+                    if (localPosOfOther.z > 0.5f && Mathf.Abs(localPosOfOther.x) < 2.5f)
+                    {
+                        // Overtake on the opposite side of where they are positioned relative to us
+                        float overtakeSide = localPosOfOther.x >= 0f ? -1.0f : 1.0f;
+                        aiOvertakeDirection = overtakeSide;
+                        aiOvertakeSideOffset = overtakeSide * Random.Range(2.5f, 3.5f); // Move aside by 2.5 to 3.5 meters
+                        aiOvertakeTimer = Random.Range(0.6f, 1.2f);
+                        foundKartToOvertake = true;
+                        break;
+                    }
                 }
             }
 
-            // Left sensor (angled slightly outwards)
-            if (!hitObstacle && Physics.Raycast(leftRayStart, Quaternion.Euler(0f, -18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
+            // B. If no karts are directly blocking, use standard whiskers for static environment obstacles
+            if (!foundKartToOvertake)
             {
-                if (IsValidObstacle(hit))
-                {
-                    hitObstacle = true;
-                    obstacleOffsetDir = 1.3f; // Turn right to avoid left obstacle
-                }
-            }
+                // Cast three whiskers forward (Center, Left, Right)
+                Vector3 centerRayStart = transform.position + Vector3.up * 0.85f;
+                Vector3 leftRayStart = centerRayStart - transform.right * 0.5f;
+                Vector3 rightRayStart = centerRayStart + transform.right * 0.5f;
+                
+                float checkDistance = 9.0f;
+                RaycastHit hit;
+                bool hitObstacle = false;
+                float obstacleOffsetDir = 0f;
 
-            // Right sensor (angled slightly outwards)
-            if (!hitObstacle && Physics.Raycast(rightRayStart, Quaternion.Euler(0f, 18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
-            {
-                if (IsValidObstacle(hit))
+                // Center sensor
+                if (Physics.Raycast(centerRayStart, transform.forward, out hit, checkDistance))
                 {
-                    hitObstacle = true;
-                    obstacleOffsetDir = -1.3f; // Turn left to avoid right obstacle
+                    if (IsValidObstacle(hit))
+                    {
+                        hitObstacle = true;
+                        Vector3 localHitPoint = transform.InverseTransformPoint(hit.point);
+                        obstacleOffsetDir = localHitPoint.x >= 0f ? -1.3f : 1.3f;
+                    }
                 }
-            }
 
-            if (hitObstacle)
-            {
-                aiOvertakeDirection = obstacleOffsetDir;
-                aiOvertakeSideOffset = aiOvertakeDirection * Random.Range(1.8f, 2.8f);
-                aiOvertakeTimer = Random.Range(1.0f, 1.8f);
+                // Left sensor (angled slightly outwards)
+                if (!hitObstacle && Physics.Raycast(leftRayStart, Quaternion.Euler(0f, -18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
+                {
+                    if (IsValidObstacle(hit))
+                    {
+                        hitObstacle = true;
+                        obstacleOffsetDir = 1.3f; // Turn right to avoid left obstacle
+                    }
+                }
+
+                // Right sensor (angled slightly outwards)
+                if (!hitObstacle && Physics.Raycast(rightRayStart, Quaternion.Euler(0f, 18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
+                {
+                    if (IsValidObstacle(hit))
+                    {
+                        hitObstacle = true;
+                        obstacleOffsetDir = -1.3f; // Turn left to avoid right obstacle
+                    }
+                }
+
+                if (hitObstacle)
+                {
+                    aiOvertakeDirection = obstacleOffsetDir;
+                    aiOvertakeSideOffset = aiOvertakeDirection * Random.Range(1.8f, 2.8f);
+                    aiOvertakeTimer = Random.Range(1.0f, 1.8f);
+                }
             }
         }
 
@@ -630,7 +842,12 @@ public class KartController : MonoBehaviour
             {
                 float maxNerf = 0.82f;
                 if (aiDifficulty == AIDifficulty.Facil) maxNerf = 0.70f;
-                else if (aiDifficulty == AIDifficulty.Dificil) maxNerf = 1.0f; // No nerfing/waiting for the player on hard mode!
+                else if (aiDifficulty == AIDifficulty.Dificil || 
+                         aiDifficulty == AIDifficulty.Competitivo || 
+                         aiDifficulty == AIDifficulty.CompetitivoB || 
+                         aiDifficulty == AIDifficulty.CompetitivoA || 
+                         aiDifficulty == AIDifficulty.CompetitivoF) 
+                    maxNerf = 1.0f; // No nerfing/waiting for the player on competitive and hard modes!
 
                 rubberbandMultiplier = Mathf.Lerp(1.0f, maxNerf, Mathf.Clamp01(distToPlayer / 35f));
             }
@@ -643,14 +860,94 @@ public class KartController : MonoBehaviour
 
         // Throttle input: full speed forward, but slow down dynamically in sharp turns
         float activeSpeedAdaptation = aiSpeedAdaptation;
-        if (aiDifficulty == AIDifficulty.Facil) activeSpeedAdaptation = Mathf.Min(1.0f, aiSpeedAdaptation * 1.3f);
-        else if (aiDifficulty == AIDifficulty.Medio) activeSpeedAdaptation = aiSpeedAdaptation * 0.65f; // Slower deceleration in curves (65%)
-        else if (aiDifficulty == AIDifficulty.Dificil) activeSpeedAdaptation = aiSpeedAdaptation * 0.25f; // Barely slows down in curves
-        else if (aiDifficulty == AIDifficulty.Adaptavel) activeSpeedAdaptation = aiSpeedAdaptation * 0.5f;
-        else if (aiDifficulty == AIDifficulty.Competitivo) activeSpeedAdaptation = aiSpeedAdaptation * 0.3f;
+        float activeBrakeProximity = 15.0f;
+        float activeBrakeStrength = 1.35f;
+
+        if (aiDifficulty == AIDifficulty.Facil) 
+        { 
+            activeSpeedAdaptation = Mathf.Min(1.0f, aiSpeedAdaptation * 1.3f); 
+            activeBrakeProximity = 18.0f; 
+            activeBrakeStrength = 1.60f; // Braking early and safely
+        }
+        else if (aiDifficulty == AIDifficulty.Medio) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.65f; 
+            activeBrakeProximity = 16.0f; 
+            activeBrakeStrength = 1.35f; 
+        }
+        else if (aiDifficulty == AIDifficulty.Dificil) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.25f; 
+            activeBrakeProximity = 13.0f; 
+            activeBrakeStrength = 0.90f; 
+        }
+        else if (aiDifficulty == AIDifficulty.Adaptavel) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.5f; 
+            activeBrakeProximity = 14.0f; 
+            activeBrakeStrength = 1.10f; 
+        }
+        else if (aiDifficulty == AIDifficulty.Competitivo) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.3f; 
+            activeBrakeProximity = 12.0f; 
+            activeBrakeStrength = 0.80f; 
+        }
+        else if (aiDifficulty == AIDifficulty.CompetitivoB) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.4f; 
+            activeBrakeProximity = 14.0f; 
+            activeBrakeStrength = 1.00f; 
+        }
+        else if (aiDifficulty == AIDifficulty.CompetitivoA) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.2f; 
+            activeBrakeProximity = 10.0f; 
+            activeBrakeStrength = 0.50f; // Braking very late
+        }
+        else if (aiDifficulty == AIDifficulty.CompetitivoF) 
+        { 
+            activeSpeedAdaptation = aiSpeedAdaptation * 0.05f; 
+            activeBrakeProximity = 5.0f; 
+            activeBrakeStrength = 0.10f; // Barely brakes
+        }
+
+        // Look-Ahead Curve Detection (Pre-braking before entering the curve)
+        float curveLookAheadBraking = 1.0f;
+        int nextWpIdx = currentWaypointIndex;
+        if (waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
+        {
+            int W = waypointCircuit.waypoints.Length;
+            int lookAheadWpIdx = (currentWaypointIndex + 1) % W;
+            if (nextWpIdx >= 0 && nextWpIdx < W && waypointCircuit.waypoints[nextWpIdx] != null && waypointCircuit.waypoints[lookAheadWpIdx] != null)
+            {
+                Vector3 dirToCurrent = (waypointCircuit.waypoints[nextWpIdx].position - transform.position).normalized;
+                Vector3 dirNextSegment = (waypointCircuit.waypoints[lookAheadWpIdx].position - waypointCircuit.waypoints[nextWpIdx].position).normalized;
+                
+                float angleDifference = Vector3.Angle(dirToCurrent, dirNextSegment);
+                if (angleDifference > 18.0f) // If the upcoming segment turns by more than 18 degrees
+                {
+                    float distToCurveEntry = Vector3.Distance(transform.position, waypointCircuit.waypoints[nextWpIdx].position);
+                    if (distToCurveEntry < activeBrakeProximity)
+                    {
+                        float curveSeverity = Mathf.Clamp01((angleDifference - 18.0f) / 65.0f); // 0 to 1
+                        float proximity = 1f - Mathf.Clamp01(distToCurveEntry / activeBrakeProximity); // 0 to 1
+                        
+                        // Pre-brake factor: can go negative (acting as active physical braking) for sharp curves
+                        curveLookAheadBraking = 1f - (curveSeverity * proximity * activeBrakeStrength);
+                    }
+                }
+            }
+        }
 
         float speedFactor = Mathf.Max(1f - (Mathf.Abs(steeringInput) * activeSpeedAdaptation), 0.35f);
         throttleInput = speedFactor * rubberbandMultiplier;
+        
+        // Apply look-ahead pre-braking constraint
+        if (curveLookAheadBraking < 1.0f)
+        {
+            throttleInput = Mathf.Min(throttleInput, curveLookAheadBraking);
+        }
 
         // If the turn is sharp enough, the AI will drift (stable drift hysteresis)
         float activeMaxSpeed = maxSpeed;
@@ -700,19 +997,82 @@ public class KartController : MonoBehaviour
                 activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 0.8f, maxSpeed * 1.50f);
             }
         }
+        else if (aiDifficulty == AIDifficulty.CompetitivoB)
+        {
+            if (playerKartCached != null)
+            {
+                float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                if (localPlayerPos.z > 0f) // Player is ahead
+                {
+                    activeMaxSpeed = playerSpeed + 1.5f + Mathf.Clamp(dist * 1.0f, 0f, 10f);
+                }
+                else // Player is behind
+                {
+                    activeMaxSpeed = Mathf.Max(playerSpeed + 1.5f, maxSpeed * 1.30f);
+                }
+                activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 0.8f, maxSpeed * 1.35f);
+            }
+        }
+        else if (aiDifficulty == AIDifficulty.CompetitivoA)
+        {
+            if (playerKartCached != null)
+            {
+                float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                if (localPlayerPos.z > 0f) // Player is ahead
+                {
+                    activeMaxSpeed = playerSpeed + 4.0f + Mathf.Clamp(dist * 1.5f, 0f, 18f);
+                }
+                else // Player is behind
+                {
+                    activeMaxSpeed = Mathf.Max(playerSpeed + 3.0f, maxSpeed * 1.42f);
+                }
+                activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 0.9f, maxSpeed * 1.50f);
+            }
+        }
+        else if (aiDifficulty == AIDifficulty.CompetitivoF)
+        {
+            if (playerKartCached != null)
+            {
+                float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                if (localPlayerPos.z > 0f) // Player is ahead
+                {
+                    activeMaxSpeed = playerSpeed + 8.0f + (dist * 2.0f);
+                }
+                else // Player is behind
+                {
+                    if (dist < 4.0f)
+                    {
+                        activeMaxSpeed = playerSpeed + 4.5f;
+                    }
+                    else
+                    {
+                        activeMaxSpeed = Mathf.Max(playerSpeed + 3.5f, maxSpeed * 1.60f);
+                    }
+                }
+                activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 1.0f, maxSpeed * 2.50f);
+            }
+        }
 
         bool speedIsEnough = rb != null && rb.linearVelocity.magnitude > (activeMaxSpeed * 0.35f);
         if (isDrifting)
         {
             isDrifting = Mathf.Abs(steeringInput) > 0.5f && speedIsEnough && isGrounded;
-            if (isDrifting && driftDirection == 0f && steeringInput != 0f)
+            if (isDrifting && steeringInput != 0f)
             {
                 driftDirection = steeringInput > 0f ? 1f : -1f;
             }
         }
         else
         {
-            isDrifting = Mathf.Abs(steeringInput) > 0.85f && speedIsEnough && isGrounded && !aiIsReversing;
+            // Lower drift steering threshold if pre-braking to enter drift easily in curves
+            float steerThreshold = (curveLookAheadBraking < 0.9f) ? 0.45f : 0.85f;
+            isDrifting = Mathf.Abs(steeringInput) > steerThreshold && speedIsEnough && isGrounded && !aiIsReversing;
             driftDirection = 0f;
         }
 
@@ -861,11 +1221,9 @@ public class KartController : MonoBehaviour
             Debug.Log("LANDING STUNT BOOST ACTIVATED!");
         }
 
-        // Check for Drift Hop or Simple Hop (Jump!) - Player only to prevent AI jitter/instability
-        if (isPlayer && jumpJustPressed && isGrounded && driftHopCooldownTimer <= 0f)
+        // Check for Drift Hop or Simple Hop (Jump!) - Ground hop force removed to make Space exclusive to starting a drift instantly from the ground
+        if (isPlayer && jumpJustPressed && isGrounded)
         {
-            rb.AddForce(transform.up * driftHopForce, ForceMode.VelocityChange);
-            driftHopCooldownTimer = hopCooldown;
             jumpJustPressed = false; // Consume jump event
         }
         wasDrifting = isDrifting;
@@ -875,7 +1233,17 @@ public class KartController : MonoBehaviour
         {
             if (isGrounded)
             {
-                currentSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
+                float physicalSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
+                if (isDrifting && throttleInput > 0.1f)
+                {
+                    // Prevent ground friction from slowing down the kart to 0 during drift
+                    float driftDrag = 2.0f * Time.fixedDeltaTime; // small speed decay
+                    currentSpeed = Mathf.Max(physicalSpeed, currentSpeed - driftDrag);
+                }
+                else
+                {
+                    currentSpeed = physicalSpeed;
+                }
             }
             else
             {
@@ -929,6 +1297,12 @@ public class KartController : MonoBehaviour
             activeBoostMultiplier = 1.0f;
         }
 
+        // Apply Nitro Boost timer update
+        if (nitroBoostTimer > 0f)
+        {
+            nitroBoostTimer -= Time.fixedDeltaTime;
+        }
+
         // 1. Calculate Target Forward Speed and Acceleration Rate using smoothed throttle input
         float targetForwardSpeed = 0f;
         float currentAccel = acceleration;
@@ -942,6 +1316,7 @@ public class KartController : MonoBehaviour
             activeMaxSpeed *= activeBoostMultiplier;
             activeAcceleration *= 1.8f; // Stronger acceleration during boost
         }
+
 
         if (!isPlayer)
         {
@@ -1019,17 +1394,117 @@ public class KartController : MonoBehaviour
                     activeAcceleration = acceleration;
                 }
             }
+            else if (aiDifficulty == AIDifficulty.CompetitivoB)
+            {
+                if (playerKartCached != null)
+                {
+                    float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                    float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                    Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                    
+                    if (localPlayerPos.z > 0f) // Player is ahead
+                    {
+                        activeMaxSpeed = playerSpeed + 1.5f + Mathf.Clamp(dist * 1.0f, 0f, 10f);
+                    }
+                    else // Player is behind
+                    {
+                        activeMaxSpeed = Mathf.Max(playerSpeed + 1.5f, maxSpeed * 1.30f);
+                    }
+                    
+                    activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 0.8f, maxSpeed * 1.35f);
+                    activeAcceleration = acceleration * 1.35f;
+                }
+                else
+                {
+                    activeMaxSpeed = maxSpeed * 1.30f;
+                    activeAcceleration = acceleration * 1.35f;
+                }
+            }
+            else if (aiDifficulty == AIDifficulty.CompetitivoA)
+            {
+                if (playerKartCached != null)
+                {
+                    float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                    float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                    Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                    
+                    if (localPlayerPos.z > 0f) // Player is ahead
+                    {
+                        activeMaxSpeed = playerSpeed + 4.0f + Mathf.Clamp(dist * 1.5f, 0f, 18f);
+                    }
+                    else // Player is behind
+                    {
+                        activeMaxSpeed = Mathf.Max(playerSpeed + 3.0f, maxSpeed * 1.42f);
+                    }
+                    
+                    activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 0.9f, maxSpeed * 1.50f);
+                    activeAcceleration = acceleration * 1.48f;
+                }
+                else
+                {
+                    activeMaxSpeed = maxSpeed * 1.42f;
+                    activeAcceleration = acceleration * 1.48f;
+                }
+            }
+            else if (aiDifficulty == AIDifficulty.CompetitivoF)
+            {
+                if (playerKartCached != null)
+                {
+                    float playerSpeed = playerKartCached.rb != null ? playerKartCached.rb.linearVelocity.magnitude : playerKartCached.currentSpeed;
+                    float dist = Vector3.Distance(transform.position, playerKartCached.transform.position);
+                    Vector3 localPlayerPos = transform.InverseTransformPoint(playerKartCached.transform.position);
+                    
+                    if (localPlayerPos.z > 0f) // Player is ahead
+                    {
+                        activeMaxSpeed = playerSpeed + 8.0f + (dist * 2.0f);
+                    }
+                    else // Player is behind
+                    {
+                        if (dist < 4.0f)
+                        {
+                            activeMaxSpeed = playerSpeed + 4.5f;
+                        }
+                        else
+                        {
+                            activeMaxSpeed = Mathf.Max(playerSpeed + 3.5f, maxSpeed * 1.60f);
+                        }
+                    }
+                    
+                    activeMaxSpeed = Mathf.Clamp(activeMaxSpeed, maxSpeed * 1.0f, maxSpeed * 2.50f);
+                    activeAcceleration = acceleration * 2.50f;
+                }
+                else
+                {
+                    activeMaxSpeed = maxSpeed * 1.60f;
+                    activeAcceleration = acceleration * 2.50f;
+                }
+            }
+        }
+
+        // Apply Mindset modifiers (NPCs only) after all difficulty calculations
+        if (!isPlayer)
+        {
+            activeMaxSpeed *= mindsetSpeedBoost;
+            activeAcceleration *= mindsetAccelBoost;
+        }
+
+        // Apply Nitro Boost modifier to both Player and AI (after difficulty/mindset speed calculations)
+        if (nitroBoostTimer > 0f)
+        {
+            activeMaxSpeed *= 1.55f; // Nitro speed multiplier
+            activeAcceleration *= 2.2f; // Much stronger acceleration during nitro
         }
 
         if (isGrounded)
         {
-            bool isBrakeDrifting = isPlayer && isDrifting && throttleInput <= 0.1f;
+            bool isBrakeDrifting = isDrifting && throttleInput <= 0.1f;
             
             if (isBrakeDrifting)
             {
                 // Brake-Drift speed capping: limit speed and apply deceleration
-                targetForwardSpeed = activeMaxSpeed * 0.40f; // Cap speed to 40%
-                currentAccel = deceleration * 2.0f; // Decelerate very fast
+                float speedCapFactor = isPlayer ? 0.40f : 0.52f; // Keep a bit more speed for AI to remain competitive
+                targetForwardSpeed = activeMaxSpeed * speedCapFactor; 
+                currentAccel = deceleration * (isPlayer ? 2.0f : 2.5f); // AI decelerates aggressively to hold the inner curve line
             }
             else if (smoothedThrottleInput > 0.05f)
             {
@@ -1080,19 +1555,33 @@ public class KartController : MonoBehaviour
 
             if (isDrifting && driftDirection != 0f)
             {
-                // Mapped drift steering: always turn in drift direction, scale rate based on input
-                // counter-steer (input opposite to driftDirection) opens up the curve (0.10x speed)
-                // steer-in (input same as driftDirection) tightens the curve (0.60x speed)
-                float steerFactor = 0.35f + (steeringInput * driftDirection) * 0.25f; // ranges from 0.10f to 0.60f
+                // Physical drift steering: turn the actual Rigidbody slower so the kart slides in a wide arc
+                // rather than spinning/rotating rapidly on its own axis (which causes donut/zerinho loops)
+                float steerFactor = isPlayer 
+                    ? (0.35f + (steeringInput * driftDirection) * 0.35f) // ranges from 0.00f (flat slide) to 0.70f (sharp turn) for player
+                    : (0.35f + (steeringInput * driftDirection) * 0.25f); // AI keeps default behavior for pathing
                 
-                // Brake-Drift: if player is not accelerating (throttleInput <= 0.1f) during drift, boost steer rate
-                bool isBrakeDrifting = isPlayer && throttleInput <= 0.1f;
+                // Brake-Drift: if not accelerating (throttleInput <= 0.1f) during drift, slightly scale steer rate
+                bool isBrakeDrifting = isDrifting && throttleInput <= 0.1f;
                 if (isBrakeDrifting)
                 {
-                    steerFactor *= 1.8f;
+                    steerFactor *= isPlayer ? 1.35f : 2.2f; 
                 }
 
-                float actualSteerSpeed = steeringSpeed * driftSteerMultiplier * steerFactor;
+                float playerSteerLimit = driftPhysicalSteerLimit;
+                if (isPlayer)
+                {
+                    bool isHoldingSpace = false;
+                    if (driftAction != null && driftAction.enabled) isHoldingSpace = driftAction.IsPressed();
+                    if (Keyboard.current != null) isHoldingSpace = isHoldingSpace || Keyboard.current.spaceKey.isPressed;
+
+                    if (!isHoldingSpace)
+                    {
+                        // Reduce turn speed by 60% when Space is released, opening up the drift curve dynamically!
+                        playerSteerLimit *= 0.40f; 
+                    }
+                }
+                float actualSteerSpeed = steeringSpeed * (isPlayer ? playerSteerLimit : 1.0f) * driftSteerMultiplier * steerFactor;
 
                 turnAngle = driftDirection * actualSteerSpeed * steerDirection * Time.fixedDeltaTime;
             }
@@ -1159,7 +1648,9 @@ public class KartController : MonoBehaviour
             if (isDrifting && driftDirection != 0f)
             {
                 // Drift push force: slide outwards from the locked drift direction
-                float driftPush = -driftDirection * currentSpeed * 0.45f;
+                // Scale slide magnitude dynamically: counter-steer reduces sliding, steer-in slides wider!
+                float steerSlideFactor = driftSlipFactor + (steeringInput * driftDirection) * driftSlipSteerInfluence;
+                float driftPush = -driftDirection * currentSpeed * steerSlideFactor;
                 targetSidewaysVel = driftPush;
             }
 
@@ -1387,6 +1878,8 @@ public class KartController : MonoBehaviour
         lastStuckCheckPosition = transform.position;
         stuckPositionTimer = 0f;
         accumulatedStuckTime = 0f;
+        stuckRadiusAnchor = transform.position;
+        stuckRadiusTimer = 0f;
 
         Debug.Log(gameObject.name + " respawned at waypoint: " + closestIdx);
     }
@@ -1425,5 +1918,140 @@ public class KartController : MonoBehaviour
         float pathPosition = prevIdx + fraction;
 
         return (currentLap - 1) * W + pathPosition;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other != null)
+        {
+            bool isBoost = other.CompareTag("Boost") || other.CompareTag("boost") || other.gameObject.name.ToLower().Contains("boost");
+            if (isBoost)
+            {
+                nitroBoostTimer = 2.0f;
+                Debug.Log(gameObject.name + " activated a BOOST trigger! Deleting the boost object.");
+                
+                // Destroy parent prefab if there is one to remove visuals and physics together, 
+                // but ensure it's not the kart itself.
+                GameObject toDestroy = other.gameObject;
+                if (other.transform.parent != null && !other.transform.parent.IsChildOf(transform) && other.transform.parent.gameObject != gameObject)
+                {
+                    toDestroy = other.transform.parent.gameObject;
+                }
+                
+                Destroy(toDestroy);
+            }
+        }
+    }
+
+    private void UpdateParticles()
+    {
+        // 1. Drift Particles: active when drifting and grounded
+        bool shouldPlayDrift = isDrifting && isGrounded;
+        if (driftParticles != null)
+        {
+            for (int i = 0; i < driftParticles.Length; i++)
+            {
+                var ps = driftParticles[i];
+                if (ps != null)
+                {
+                    if (shouldPlayDrift)
+                    {
+                        if (!ps.isPlaying) ps.Play();
+                    }
+                    else
+                    {
+                        if (ps.isPlaying) ps.Stop();
+                    }
+                }
+            }
+        }
+
+        // 2. Boost Particles: active when the kart has a speed boost (drift boost or nitro trigger boost)
+        bool shouldPlayBoost = (nitroBoostTimer > 0f) || (activeBoostTimer > 0f);
+        if (boostParticles != null)
+        {
+            for (int i = 0; i < boostParticles.Length; i++)
+            {
+                var ps = boostParticles[i];
+                if (ps != null)
+                {
+                    if (shouldPlayBoost)
+                    {
+                        if (!ps.isPlaying) ps.Play();
+                    }
+                    else
+                    {
+                        if (ps.isPlaying) ps.Stop();
+                    }
+                }
+            }
+        }
+    }
+
+    private void UpdateAudio()
+    {
+        // 1. Drift Audio: play/fade when drifting and grounded
+        bool shouldPlayDriftAudio = isDrifting && isGrounded && Mathf.Abs(currentSpeed) > 1.0f;
+        if (driftAudioSource != null)
+        {
+            if (shouldPlayDriftAudio)
+            {
+                if (!driftAudioSource.isPlaying)
+                {
+                    driftAudioSource.volume = 0f;
+                    if (driftAudioSource.clip != null && driftAudioSource.clip.length > 0f)
+                    {
+                        driftAudioSource.time = Random.Range(0f, driftAudioSource.clip.length);
+                    }
+                    driftAudioSource.pitch = driftBasePitch * Random.Range(0.92f, 1.08f);
+                    driftAudioSource.Play();
+                }
+                driftAudioSource.volume = Mathf.MoveTowards(driftAudioSource.volume, maxDriftVolume, driftFadeSpeed * Time.deltaTime);
+            }
+            else
+            {
+                if (driftAudioSource.isPlaying)
+                {
+                    driftAudioSource.volume = Mathf.MoveTowards(driftAudioSource.volume, 0f, driftFadeSpeed * Time.deltaTime);
+                    if (driftAudioSource.volume <= 0.01f)
+                    {
+                        driftAudioSource.Stop();
+                        driftAudioSource.volume = 0f;
+                    }
+                }
+            }
+        }
+
+        // 2. Boost Audio: play/fade when boost is active
+        bool shouldPlayBoostAudio = (nitroBoostTimer > 0f) || (activeBoostTimer > 0f);
+        if (boostAudioSource != null)
+        {
+            if (shouldPlayBoostAudio)
+            {
+                if (!boostAudioSource.isPlaying)
+                {
+                    boostAudioSource.volume = 0f;
+                    if (boostAudioSource.clip != null && boostAudioSource.clip.length > 0f)
+                    {
+                        boostAudioSource.time = Random.Range(0f, boostAudioSource.clip.length);
+                    }
+                    boostAudioSource.pitch = boostBasePitch * Random.Range(0.95f, 1.05f);
+                    boostAudioSource.Play();
+                }
+                boostAudioSource.volume = Mathf.MoveTowards(boostAudioSource.volume, maxBoostVolume, boostFadeSpeed * Time.deltaTime);
+            }
+            else
+            {
+                if (boostAudioSource.isPlaying)
+                {
+                    boostAudioSource.volume = Mathf.MoveTowards(boostAudioSource.volume, 0f, boostFadeSpeed * Time.deltaTime);
+                    if (boostAudioSource.volume <= 0.01f)
+                    {
+                        boostAudioSource.Stop();
+                        boostAudioSource.volume = 0f;
+                    }
+                }
+            }
+        }
     }
 }
