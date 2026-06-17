@@ -56,6 +56,8 @@ public class KartController : MonoBehaviour
     public float boostChargeRate = 250f;
     [Tooltip("How much boost score is consumed to trigger a single 2-second Nitro Boost.")]
     public float boostActivateCost = 300f;
+    [Tooltip("UI GameObjects representing the boost charges/icons.")]
+    public GameObject[] boostIcons;
 
     [Header("Audio Settings")]
     [Tooltip("Audio source to play looping tire screech sound during drift.")]
@@ -341,6 +343,7 @@ public class KartController : MonoBehaviour
         if (isPlayer)
         {
             HandlePlayerInput();
+            UpdateBoostHUD();
 
             // Drift boost duration charging and release (Player only)
             if (isDrifting)
@@ -2141,6 +2144,21 @@ public class KartController : MonoBehaviour
                         boostAudioSource.volume = 0f;
                     }
                 }
+            }
+        }
+    }
+
+    private void UpdateBoostHUD()
+    {
+        if (boostIcons == null || boostIcons.Length == 0) return;
+
+        int activeCharges = Mathf.FloorToInt(currentBoostScore / boostActivateCost);
+
+        for (int i = 0; i < boostIcons.Length; i++)
+        {
+            if (boostIcons[i] != null)
+            {
+                boostIcons[i].SetActive(i < activeCharges);
             }
         }
     }
