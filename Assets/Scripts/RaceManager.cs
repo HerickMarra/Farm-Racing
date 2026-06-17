@@ -1,8 +1,6 @@
 using UnityEngine;
-using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine.SceneManagement;
 
 public class RaceManager : MonoBehaviour
@@ -16,30 +14,19 @@ public class RaceManager : MonoBehaviour
     [Header("State")]
     public RaceState currentState = RaceState.Intro;
 
+    [Header("UI References")]
+    [SerializeField] private UnityEngine.Canvas canvas;
+    [SerializeField] private TMPro.TextMeshProUGUI countdownText;
+    [SerializeField] private TMPro.TextMeshProUGUI playerPosText;
+    [SerializeField] private TMPro.TextMeshProUGUI lapText;
+    [SerializeField] private TMPro.TextMeshProUGUI leaderboardText;
+    [SerializeField] private TMPro.TextMeshProUGUI finishWinnerText;
+    [SerializeField] private GameObject introText;
+    [SerializeField] private GameObject finishPanel;
+    [SerializeField] private UnityEngine.UI.Button restartButton;
+
     private List<KartController> karts = new List<KartController>();
     private KartController playerKart;
-
-    // UI Elements (Created dynamically)
-    private Canvas canvas;
-    private bool useLegacyUI = false;
-
-    // TMPro Components
-    private TextMeshProUGUI countdownText;
-    private TextMeshProUGUI playerPosText;
-    private TextMeshProUGUI lapText;
-    private TextMeshProUGUI leaderboardText;
-    private TextMeshProUGUI finishWinnerText;
-    private TextMeshProUGUI introText;
-
-    // Legacy UI Components
-    private Text countdownTextLegacy;
-    private Text playerPosTextLegacy;
-    private Text lapTextLegacy;
-    private Text leaderboardTextLegacy;
-    private Text finishWinnerTextLegacy;
-    private Text introTextLegacy;
-
-    private GameObject finishPanel;
 
     private void Awake()
     {
@@ -70,24 +57,17 @@ public class RaceManager : MonoBehaviour
             esGo.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
         }
 
-        // 3. Detect if TextMeshPro can load its default font asset without throwing
-        try
+        // 3. Configure Restart Button Listener
+        if (restartButton != null)
         {
-            var font = TMP_Settings.defaultFontAsset;
-            if (font == null)
-            {
-                useLegacyUI = true;
-                Debug.LogWarning("TextMeshPro default font is null. Falling back to legacy UI.Text.");
-            }
-        }
-        catch (System.Exception ex)
-        {
-            useLegacyUI = true;
-            Debug.LogWarning("TextMeshPro default font not imported or threw exception: " + ex.Message + ". Falling back to legacy UI.Text.");
+            restartButton.onClick.RemoveAllListeners();
+            restartButton.onClick.AddListener(RestartRace);
         }
 
-        // 4. Create UI
-        CreateUIElements();
+        // Ensure proper initial UI visibility
+        if (introText != null) introText.SetActive(true);
+        if (countdownText != null) countdownText.gameObject.SetActive(true);
+        if (finishPanel != null) finishPanel.SetActive(false);
     }
 
     private void Start()
@@ -105,13 +85,9 @@ public class RaceManager : MonoBehaviour
         {
             // Pulse the start text
             float pulse = 1f + Mathf.PingPong(Time.time * 2f, 0.15f);
-            if (useLegacyUI)
+            if (introText != null)
             {
-                if (introTextLegacy != null) introTextLegacy.transform.localScale = Vector3.one * pulse;
-            }
-            else
-            {
-                if (introText != null) introText.transform.localScale = Vector3.one * pulse;
+                introText.transform.localScale = Vector3.one * pulse;
             }
 
             // Detect space key press to start the race
@@ -132,7 +108,6 @@ public class RaceManager : MonoBehaviour
         currentState = RaceState.Countdown;
 
         if (introText != null) introText.gameObject.SetActive(false);
-        if (introTextLegacy != null) introTextLegacy.gameObject.SetActive(false);
 
         // Tell Camera to snap to target and end intro flyby
         CameraController cam = Object.FindAnyObjectByType<CameraController>();
@@ -158,43 +133,20 @@ public class RaceManager : MonoBehaviour
             string val = Mathf.Ceil(timer).ToString("F0");
             Vector3 scale = Vector3.one * (1f + (timer % 1f) * 0.4f);
 
-            if (useLegacyUI)
+            if (countdownText != null)
             {
-                if (countdownTextLegacy != null)
-                {
-                    countdownTextLegacy.text = val;
-                    countdownTextLegacy.transform.localScale = scale;
-                }
-            }
-            else
-            {
-                if (countdownText != null)
-                {
-                    countdownText.text = val;
-                    countdownText.transform.localScale = scale;
-                }
+                countdownText.text = val;
+                countdownText.transform.localScale = scale;
             }
             yield return null;
             timer -= Time.deltaTime;
         }
 
-        if (useLegacyUI)
+        if (countdownText != null)
         {
-            if (countdownTextLegacy != null)
-            {
-                countdownTextLegacy.text = "GO!";
-                countdownTextLegacy.color = Color.green;
-                countdownTextLegacy.transform.localScale = Vector3.one * 1.5f;
-            }
-        }
-        else
-        {
-            if (countdownText != null)
-            {
-                countdownText.text = "GO!";
-                countdownText.color = Color.green;
-                countdownText.transform.localScale = Vector3.one * 1.5f;
-            }
+            countdownText.text = "GO!";
+            countdownText.color = Color.green;
+            countdownText.transform.localScale = Vector3.one * 1.5f;
         }
 
         // Start the race!
@@ -206,19 +158,9 @@ public class RaceManager : MonoBehaviour
 
         yield return new WaitForSeconds(1.2f);
 
-        if (useLegacyUI)
+        if (countdownText != null)
         {
-            if (countdownTextLegacy != null)
-            {
-                countdownTextLegacy.gameObject.SetActive(false);
-            }
-        }
-        else
-        {
-            if (countdownText != null)
-            {
-                countdownText.gameObject.SetActive(false);
-            }
+            countdownText.gameObject.SetActive(false);
         }
     }
 
@@ -242,26 +184,18 @@ public class RaceManager : MonoBehaviour
             int pPos = playerKart.currentPosition;
             string posStr = $"{pPos}{GetPositionSuffix(pPos)}";
 
-            if (useLegacyUI)
+            if (playerPosText != null)
             {
-                if (playerPosTextLegacy != null) playerPosTextLegacy.text = posStr;
-            }
-            else
-            {
-                if (playerPosText != null) playerPosText.text = posStr;
+                playerPosText.text = posStr;
             }
 
             // Lap
             int pLap = Mathf.Min(playerKart.CurrentLap, totalLaps);
             string lapStr = $"VOLTA: {pLap} / {totalLaps}";
 
-            if (useLegacyUI)
+            if (lapText != null)
             {
-                if (lapTextLegacy != null) lapTextLegacy.text = lapStr;
-            }
-            else
-            {
-                if (lapText != null) lapText.text = lapStr;
+                lapText.text = lapStr;
             }
 
             // Check if player has finished the final lap
@@ -277,17 +211,10 @@ public class RaceManager : MonoBehaviour
 
     private void UpdateLeaderboardUI()
     {
-        if (leaderboardText == null && leaderboardTextLegacy == null) return;
+        if (leaderboardText == null) return;
 
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        if (!useLegacyUI)
-        {
-            sb.AppendLine("<size=28><color=#FFDD22><b>CLASSIFICAÇÃO</b></color></size>");
-        }
-        else
-        {
-            sb.AppendLine("<b><color=#FFDD22>CLASSIFICAÇÃO</color></b>");
-        }
+        sb.AppendLine("<size=28><color=#FFDD22><b>CLASSIFICAÇÃO</b></color></size>");
         sb.AppendLine("--------------------------");
 
         for (int i = 0; i < karts.Count; i++)
@@ -305,14 +232,7 @@ public class RaceManager : MonoBehaviour
             sb.AppendLine($"{colorTag}{posPrefix}{kName.PadRight(15)} ({lapStr}){endColor}");
         }
 
-        if (useLegacyUI)
-        {
-            leaderboardTextLegacy.text = sb.ToString();
-        }
-        else
-        {
-            leaderboardText.text = sb.ToString();
-        }
+        leaderboardText.text = sb.ToString();
     }
 
     private void FinishRace()
@@ -342,13 +262,9 @@ public class RaceManager : MonoBehaviour
                 string posWord = finalPos == 1 ? "CAMPEÃO!" : $"{finalPos}º Lugar";
                 string displayText = $"FIM DE CORRIDA!\n\nVocê chegou em {posWord}";
 
-                if (useLegacyUI)
+                if (finishWinnerText != null)
                 {
-                    if (finishWinnerTextLegacy != null) finishWinnerTextLegacy.text = displayText;
-                }
-                else
-                {
-                    if (finishWinnerText != null) finishWinnerText.text = displayText;
+                    finishWinnerText.text = displayText;
                 }
             }
         }
@@ -375,326 +291,5 @@ public class RaceManager : MonoBehaviour
             default: return rawName;
         }
     }
-
-    private void CreateUIElements()
-    {
-        // Create Canvas Container
-        GameObject canvasGo = new GameObject("RaceHUD_Canvas");
-        canvas = canvasGo.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvasGo.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        canvasGo.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1920, 1080);
-        canvasGo.AddComponent<GraphicRaycaster>();
-
-        Color panelBgColor = new Color(0.1f, 0.1f, 0.1f, 0.72f);
-        Font legacyFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
-        // 0. INTRO PRESS KEY TO START TEXT (Center-Bottom)
-        GameObject introGo = new GameObject("IntroText");
-        introGo.transform.SetParent(canvasGo.transform, false);
-        RectTransform introRect = introGo.AddComponent<RectTransform>();
-        introRect.anchorMin = new Vector2(0.5f, 0.2f);
-        introRect.anchorMax = new Vector2(0.5f, 0.2f);
-        introRect.pivot = new Vector2(0.5f, 0.5f);
-        introRect.anchoredPosition = Vector2.zero;
-        introRect.sizeDelta = new Vector2(800, 150);
-
-        if (!useLegacyUI)
-        {
-            introText = introGo.AddComponent<TextMeshProUGUI>();
-            introText.fontSize = 32;
-            introText.alignment = TextAlignmentOptions.Center;
-            introText.color = Color.white;
-            introText.fontStyle = FontStyles.Bold;
-            introText.text = "PRESSIONE [ESPAÇO] PARA COMEÇAR";
-        }
-        else
-        {
-            introTextLegacy = introGo.AddComponent<Text>();
-            introTextLegacy.font = legacyFont;
-            introTextLegacy.fontSize = 28;
-            introTextLegacy.alignment = TextAnchor.MiddleCenter;
-            introTextLegacy.color = Color.white;
-            introTextLegacy.text = "PRESSIONE [ESPAÇO] PARA COMEÇAR";
-        }
-
-        // 1. COUNTDOWN TEXT (Center Screen)
-        GameObject countGo = new GameObject("CountdownText");
-        countGo.transform.SetParent(canvasGo.transform, false);
-        RectTransform countRect = countGo.AddComponent<RectTransform>();
-        countRect.anchoredPosition = Vector2.zero;
-        countRect.sizeDelta = new Vector2(600, 300);
-        
-        if (!useLegacyUI)
-        {
-            countdownText = countGo.AddComponent<TextMeshProUGUI>();
-            countdownText.fontSize = 130;
-            countdownText.alignment = TextAlignmentOptions.Center;
-            countdownText.color = Color.yellow;
-            countdownText.fontStyle = FontStyles.Bold;
-        }
-        else
-        {
-            countdownTextLegacy = countGo.AddComponent<Text>();
-            countdownTextLegacy.font = legacyFont;
-            countdownTextLegacy.fontSize = 120;
-            countdownTextLegacy.alignment = TextAnchor.MiddleCenter;
-            countdownTextLegacy.color = Color.yellow;
-        }
-
-        // 2. PLAYER POSITION DISPLAY (Bottom-Left)
-        GameObject posGroup = new GameObject("PositionHUDGroup");
-        posGroup.transform.SetParent(canvasGo.transform, false);
-        RectTransform posGroupRect = posGroup.AddComponent<RectTransform>();
-        posGroupRect.anchorMin = new Vector2(0f, 0f);
-        posGroupRect.anchorMax = new Vector2(0f, 0f);
-        posGroupRect.pivot = new Vector2(0f, 0f);
-        posGroupRect.anchoredPosition = new Vector2(60, 60);
-        posGroupRect.sizeDelta = new Vector2(250, 150);
-
-        // Position Background Panel
-        GameObject posBg = new GameObject("Bg");
-        posBg.transform.SetParent(posGroup.transform, false);
-        RectTransform posBgRect = posBg.AddComponent<RectTransform>();
-        posBgRect.anchorMin = Vector2.zero;
-        posBgRect.anchorMax = Vector2.one;
-        posBgRect.sizeDelta = Vector2.zero;
-        Image posBgImg = posBg.AddComponent<Image>();
-        posBgImg.color = panelBgColor;
-
-        // Big Position Number (e.g. 1º)
-        GameObject posNumGo = new GameObject("PositionNumber");
-        posNumGo.transform.SetParent(posGroup.transform, false);
-        RectTransform posNumRect = posNumGo.AddComponent<RectTransform>();
-        posNumRect.anchorMin = new Vector2(0.05f, 0.05f);
-        posNumRect.anchorMax = new Vector2(0.95f, 0.75f);
-        posNumRect.sizeDelta = Vector2.zero;
-        
-        if (!useLegacyUI)
-        {
-            playerPosText = posNumGo.AddComponent<TextMeshProUGUI>();
-            playerPosText.fontSize = 80;
-            playerPosText.alignment = TextAlignmentOptions.Center;
-            playerPosText.color = Color.yellow;
-            playerPosText.fontStyle = FontStyles.Bold;
-            playerPosText.text = "1º";
-        }
-        else
-        {
-            playerPosTextLegacy = posNumGo.AddComponent<Text>();
-            playerPosTextLegacy.font = legacyFont;
-            playerPosTextLegacy.fontSize = 70;
-            playerPosTextLegacy.alignment = TextAnchor.MiddleCenter;
-            playerPosTextLegacy.color = Color.yellow;
-            playerPosTextLegacy.text = "1º";
-        }
-
-        // Label above the position
-        GameObject posLblGo = new GameObject("PositionLabel");
-        posLblGo.transform.SetParent(posGroup.transform, false);
-        RectTransform posLblRect = posLblGo.AddComponent<RectTransform>();
-        posLblRect.anchorMin = new Vector2(0.1f, 0.75f);
-        posLblRect.anchorMax = new Vector2(0.9f, 0.95f);
-        posLblRect.sizeDelta = Vector2.zero;
-        
-        if (!useLegacyUI)
-        {
-            var posLbl = posLblGo.AddComponent<TextMeshProUGUI>();
-            posLbl.fontSize = 18;
-            posLbl.alignment = TextAlignmentOptions.Left;
-            posLbl.color = Color.white;
-            posLbl.text = "POSIÇÃO";
-        }
-        else
-        {
-            var posLbl = posLblGo.AddComponent<Text>();
-            posLbl.font = legacyFont;
-            posLbl.fontSize = 14;
-            posLbl.alignment = TextAnchor.MiddleLeft;
-            posLbl.color = Color.white;
-            posLbl.text = "POSIÇÃO";
-        }
-
-        // 3. LAP DISPLAY (Top-Left)
-        GameObject lapGroup = new GameObject("LapHUDGroup");
-        lapGroup.transform.SetParent(canvasGo.transform, false);
-        RectTransform lapGroupRect = lapGroup.AddComponent<RectTransform>();
-        lapGroupRect.anchorMin = new Vector2(0f, 1f);
-        lapGroupRect.anchorMax = new Vector2(0f, 1f);
-        lapGroupRect.pivot = new Vector2(0f, 1f);
-        lapGroupRect.anchoredPosition = new Vector2(60, -60);
-        lapGroupRect.sizeDelta = new Vector2(300, 75);
-
-        // Background
-        GameObject lapBg = new GameObject("Bg");
-        lapBg.transform.SetParent(lapGroup.transform, false);
-        RectTransform lapBgRect = lapBg.AddComponent<RectTransform>();
-        lapBgRect.anchorMin = Vector2.zero;
-        lapBgRect.anchorMax = Vector2.one;
-        lapBgRect.sizeDelta = Vector2.zero;
-        Image lapBgImg = lapBg.AddComponent<Image>();
-        lapBgImg.color = panelBgColor;
-
-        // Text
-        GameObject lapTextGo = new GameObject("LapText");
-        lapTextGo.transform.SetParent(lapGroup.transform, false);
-        RectTransform lapTextRect = lapTextGo.AddComponent<RectTransform>();
-        lapTextRect.anchorMin = new Vector2(0.05f, 0.1f);
-        lapTextRect.anchorMax = new Vector2(0.95f, 0.9f);
-        lapTextRect.sizeDelta = Vector2.zero;
-
-        if (!useLegacyUI)
-        {
-            lapText = lapTextGo.AddComponent<TextMeshProUGUI>();
-            lapText.fontSize = 32;
-            lapText.alignment = TextAlignmentOptions.Center;
-            lapText.color = Color.white;
-            lapText.fontStyle = FontStyles.Bold;
-            lapText.text = "VOLTA: 1 / 3";
-        }
-        else
-        {
-            lapTextLegacy = lapTextGo.AddComponent<Text>();
-            lapTextLegacy.font = legacyFont;
-            lapTextLegacy.fontSize = 26;
-            lapTextLegacy.alignment = TextAnchor.MiddleCenter;
-            lapTextLegacy.color = Color.white;
-            lapTextLegacy.text = "VOLTA: 1 / 3";
-        }
-
-        // 4. LEADERBOARD PANEL (Top-Right)
-        GameObject leaderGroup = new GameObject("LeaderboardHUDGroup");
-        leaderGroup.transform.SetParent(canvasGo.transform, false);
-        RectTransform leaderGroupRect = leaderGroup.AddComponent<RectTransform>();
-        leaderGroupRect.anchorMin = new Vector2(1f, 1f);
-        leaderGroupRect.anchorMax = new Vector2(1f, 1f);
-        leaderGroupRect.pivot = new Vector2(1f, 1f);
-        leaderGroupRect.anchoredPosition = new Vector2(-60, -60);
-        leaderGroupRect.sizeDelta = new Vector2(350, 260);
-
-        // Background
-        GameObject leaderBg = new GameObject("Bg");
-        leaderBg.transform.SetParent(leaderGroup.transform, false);
-        RectTransform leaderBgRect = leaderBg.AddComponent<RectTransform>();
-        leaderBgRect.anchorMin = Vector2.zero;
-        leaderBgRect.anchorMax = Vector2.one;
-        leaderBgRect.sizeDelta = Vector2.zero;
-        Image leaderBgImg = leaderBg.AddComponent<Image>();
-        leaderBgImg.color = panelBgColor;
-
-        // Leaderboard Text
-        GameObject leaderTextGo = new GameObject("LeaderboardText");
-        leaderTextGo.transform.SetParent(leaderGroup.transform, false);
-        RectTransform leaderTextRect = leaderTextGo.AddComponent<RectTransform>();
-        leaderTextRect.anchorMin = new Vector2(0.05f, 0.05f);
-        leaderTextRect.anchorMax = new Vector2(0.95f, 0.95f);
-        leaderTextRect.sizeDelta = Vector2.zero;
-
-        if (!useLegacyUI)
-        {
-            leaderboardText = leaderTextGo.AddComponent<TextMeshProUGUI>();
-            leaderboardText.fontSize = 18;
-            leaderboardText.text = "";
-        }
-        else
-        {
-            leaderboardTextLegacy = leaderTextGo.AddComponent<Text>();
-            leaderboardTextLegacy.font = legacyFont;
-            leaderboardTextLegacy.fontSize = 15;
-            leaderboardTextLegacy.alignment = TextAnchor.UpperLeft;
-            leaderboardTextLegacy.color = Color.white;
-            leaderboardTextLegacy.text = "";
-        }
-
-        // 5. FINISH OVERLAY PANEL (Center, Hidden by default)
-        finishPanel = new GameObject("FinishPanel");
-        finishPanel.transform.SetParent(canvasGo.transform, false);
-        RectTransform finishRect = finishPanel.AddComponent<RectTransform>();
-        finishRect.anchorMin = Vector2.zero;
-        finishRect.anchorMax = Vector2.one;
-        finishRect.sizeDelta = Vector2.zero;
-        finishPanel.SetActive(false);
-
-        // Completely transparent full screen overlay so it doesn't block the view
-        Image finishOverlayImg = finishPanel.AddComponent<Image>();
-        finishOverlayImg.color = new Color(0f, 0f, 0f, 0f);
-
-        // MessageBox Container positioned at the bottom center of the screen
-        GameObject innerFinishGo = new GameObject("MessageBox");
-        innerFinishGo.transform.SetParent(finishPanel.transform, false);
-        RectTransform innerFinishRect = innerFinishGo.AddComponent<RectTransform>();
-        innerFinishRect.anchorMin = new Vector2(0.5f, 0f);
-        innerFinishRect.anchorMax = new Vector2(0.5f, 0f);
-        innerFinishRect.pivot = new Vector2(0.5f, 0f);
-        innerFinishRect.anchoredPosition = new Vector2(0, 50); // 50 pixels from bottom
-        innerFinishRect.sizeDelta = new Vector2(450, 180); // Compact size
-        Image innerFinishImg = innerFinishGo.AddComponent<Image>();
-        innerFinishImg.color = new Color(0.1f, 0.1f, 0.1f, 0.85f); // Clean semi-transparent dark panel
-
-        // Title and Info
-        GameObject winTextGo = new GameObject("WinnerText");
-        winTextGo.transform.SetParent(innerFinishGo.transform, false);
-        RectTransform winTextRect = winTextGo.AddComponent<RectTransform>();
-        winTextRect.anchorMin = new Vector2(0.05f, 0.45f);
-        winTextRect.anchorMax = new Vector2(0.95f, 0.95f);
-        winTextRect.sizeDelta = Vector2.zero;
-
-        if (!useLegacyUI)
-        {
-            finishWinnerText = winTextGo.AddComponent<TextMeshProUGUI>();
-            finishWinnerText.fontSize = 24;
-            finishWinnerText.alignment = TextAlignmentOptions.Center;
-            finishWinnerText.color = Color.white;
-            finishWinnerText.text = "FIM DE CORRIDA!";
-        }
-        else
-        {
-            finishWinnerTextLegacy = winTextGo.AddComponent<Text>();
-            finishWinnerTextLegacy.font = legacyFont;
-            finishWinnerTextLegacy.fontSize = 20;
-            finishWinnerTextLegacy.alignment = TextAnchor.MiddleCenter;
-            finishWinnerTextLegacy.color = Color.white;
-            finishWinnerTextLegacy.text = "FIM DE CORRIDA!";
-        }
-
-        // Restart Button
-        GameObject restartBtnGo = new GameObject("RestartButton");
-        restartBtnGo.transform.SetParent(innerFinishGo.transform, false);
-        RectTransform restartBtnRect = restartBtnGo.AddComponent<RectTransform>();
-        restartBtnRect.anchorMin = new Vector2(0.15f, 0.08f);
-        restartBtnRect.anchorMax = new Vector2(0.85f, 0.42f);
-        restartBtnRect.sizeDelta = Vector2.zero;
-
-        Image btnImg = restartBtnGo.AddComponent<Image>();
-        btnImg.color = new Color(0.2f, 0.75f, 0.25f, 1f); // Vibrant green
-        Button btnComp = restartBtnGo.AddComponent<Button>();
-        btnComp.onClick.AddListener(RestartRace);
-
-        // Button Text
-        GameObject btnTextGo = new GameObject("Text");
-        btnTextGo.transform.SetParent(restartBtnGo.transform, false);
-        RectTransform btnTextRect = btnTextGo.AddComponent<RectTransform>();
-        btnTextRect.anchorMin = Vector2.zero;
-        btnTextRect.anchorMax = Vector2.one;
-        btnTextRect.sizeDelta = Vector2.zero;
-
-        if (!useLegacyUI)
-        {
-            var btnText = btnTextGo.AddComponent<TextMeshProUGUI>();
-            btnText.fontSize = 20;
-            btnText.alignment = TextAlignmentOptions.Center;
-            btnText.color = Color.white;
-            btnText.fontStyle = FontStyles.Bold;
-            btnText.text = "CORRER DE NOVO";
-        }
-        else
-        {
-            var btnText = btnTextGo.AddComponent<Text>();
-            btnText.font = legacyFont;
-            btnText.fontSize = 16;
-            btnText.alignment = TextAnchor.MiddleCenter;
-            btnText.color = Color.white;
-            btnText.text = "CORRER DE NOVO";
-        }
-    }
 }
+
