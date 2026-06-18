@@ -54,7 +54,26 @@ public class LoadInicial : MonoBehaviour
 
     private IEnumerator LoadScenesRoutine()
     {
-        // 1. Wait until the video ends or player skips
+        // Save original background loading priority and set to Low to prevent video stuttering
+        ThreadPriority originalPriority = Application.backgroundLoadingPriority;
+        Application.backgroundLoadingPriority = ThreadPriority.Low;
+
+        // 1. Begin loading both scenes additively in the background immediately
+        Debug.Log("Starting background loading of '" + sceneMapName + "' with Low priority...");
+        AsyncOperation loadMap = SceneManager.LoadSceneAsync(sceneMapName, LoadSceneMode.Additive);
+        if (loadMap != null)
+        {
+            loadMap.allowSceneActivation = false;
+        }
+
+        Debug.Log("Starting background loading of '" + sceneMenuName + "' with Low priority...");
+        AsyncOperation loadMenu = SceneManager.LoadSceneAsync(sceneMenuName, LoadSceneMode.Additive);
+        if (loadMenu != null)
+        {
+            loadMenu.allowSceneActivation = false;
+        }
+
+        // 2. Wait until the video ends or player skips
         while (!videoFinished)
         {
             if (allowSkip && Keyboard.current != null)
@@ -76,18 +95,35 @@ public class LoadInicial : MonoBehaviour
             yield return null;
         }
 
-        // 2. Begin loading the scenes additively AFTER the video finishes
-        Debug.Log("Video finished. Starting additive loading of '" + sceneMapName + "' and '" + sceneMenuName + "'...");
-        AsyncOperation loadMap = SceneManager.LoadSceneAsync(sceneMapName, LoadSceneMode.Additive);
-        AsyncOperation loadMenu = SceneManager.LoadSceneAsync(sceneMenuName, LoadSceneMode.Additive);
+        // 3. Restore background loading priority to High for fast activation
+        Application.backgroundLoadingPriority = ThreadPriority.High;
 
-        // 3. Wait for the loading operations to complete
-        while ((loadMap != null && !loadMap.isDone) || (loadMenu != null && !loadMenu.isDone))
+        // 4. Activate the 3D Map scene first and wait for completion
+        if (loadMap != null)
         {
-            yield return null;
+            Debug.Log("Activating Map scene...");
+            loadMap.allowSceneActivation = true;
+            while (!loadMap.isDone)
+            {
+                yield return null;
+            }
         }
 
-        // 4. Set the active scene to the configured UI or Map scene
+        // 5. Then activate the Menu UI scene and wait for completion
+        if (loadMenu != null)
+        {
+            Debug.Log("Activating Menu scene...");
+            loadMenu.allowSceneActivation = true;
+            while (!loadMenu.isDone)
+            {
+                yield return null;
+            }
+        }
+
+        // Restore original priority
+        Application.backgroundLoadingPriority = originalPriority;
+
+        // 6. Set the active scene to the configured UI or Map scene
         Scene activeScene = SceneManager.GetSceneByName(activeSceneName);
         if (activeScene.IsValid())
         {
@@ -95,7 +131,7 @@ public class LoadInicial : MonoBehaviour
             Debug.Log("Successfully set active scene to: " + activeSceneName);
         }
 
-        // 5. Unload this Load Inicial scene to free memory
+        // 7. Unload this Load Inicial scene to free memory
         Scene loadingScene = gameObject.scene;
         if (loadingScene.IsValid() && loadingScene.isLoaded)
         {
