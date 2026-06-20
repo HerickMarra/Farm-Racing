@@ -351,6 +351,62 @@ MonoBehaviour:
       data1: 0
       data2: 0
   defaultFrameSettings: 0
+--- !u!1 &1750050475
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1750050477}
+  - component: {fileID: 1750050476}
+  m_Layer: 0
+  m_Name: Radio
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1750050476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1750050475}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c26ae9a8ff882e94189134472bd4a0d7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RadioManager
+  playlist:
+  - {fileID: 8300000, guid: bca33275300b59c4d938c8368e81ecea, type: 3}
+  - {fileID: 8300000, guid: e45844f590c8f8e4bb26bb4749de1b56, type: 3}
+  - {fileID: 8300000, guid: 5e88dc89b76e65f4bb3dfa48bfd722d6, type: 3}
+  - {fileID: 8300000, guid: eb2326c48e4ff634bbf753fe3f16280d, type: 3}
+  - {fileID: 8300000, guid: 2d3ba6106fd2e874193c6e88fd003981, type: 3}
+  maxVolume: 0.4
+  crossfadeDuration: 3.5
+  muffleCutoffFrequency: 1000
+  manualMuffle: 0
+  audioSourceA: {fileID: 0}
+  audioSourceB: {fileID: 0}
+--- !u!4 &1750050477
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1750050475}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 15.67295, y: 12.66225, z: 56.21046}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2045268728
 GameObject:
   m_ObjectHideFlags: 0
@@ -443,3 +499,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 1643337341}
   - {fileID: 2045268730}
+  - {fileID: 1750050477}

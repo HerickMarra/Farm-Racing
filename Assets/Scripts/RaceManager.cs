@@ -24,12 +24,15 @@ public class RaceManager : MonoBehaviour
     [SerializeField] private GameObject introText;
     [SerializeField] private GameObject finishPanel;
     [SerializeField] private UnityEngine.UI.Button restartButton;
+    [SerializeField] private GameObject pausePanel;
 
     private List<KartController> karts = new List<KartController>();
     private KartController playerKart;
+    private bool isPaused = false;
 
     private void Awake()
     {
+        Time.timeScale = 1f; // Reset time scale in case we reloaded from pause state
         currentState = RaceState.Intro;
 
         // 1. Find all karts in the scene
@@ -81,6 +84,19 @@ public class RaceManager : MonoBehaviour
 
     private void Update()
     {
+        // Toggle pause when Escape or P is pressed during countdown or racing
+        if (currentState == RaceState.Countdown || currentState == RaceState.Racing)
+        {
+            if (UnityEngine.InputSystem.Keyboard.current != null && 
+                (UnityEngine.InputSystem.Keyboard.current.escapeKey.wasPressedThisFrame || 
+                 UnityEngine.InputSystem.Keyboard.current.pKey.wasPressedThisFrame))
+            {
+                TogglePause();
+            }
+        }
+
+        if (isPaused) return;
+
         if (currentState == RaceState.Intro)
         {
             // Pulse the start text
@@ -100,6 +116,30 @@ public class RaceManager : MonoBehaviour
         {
             UpdateRaceProgress();
         }
+    }
+
+    public void TogglePause()
+    {
+        if (currentState != RaceState.Countdown && currentState != RaceState.Racing) return;
+
+        isPaused = !isPaused;
+        Time.timeScale = isPaused ? 0f : 1f;
+
+        if (pausePanel != null)
+        {
+            pausePanel.SetActive(isPaused);
+        }
+        else
+        {
+            // Dynamic fallback if no pause panel is assigned in inspector
+            GameObject dynamicPausePanel = GameObject.Find("PausePanel");
+            if (dynamicPausePanel != null)
+            {
+                dynamicPausePanel.SetActive(isPaused);
+            }
+        }
+
+        Debug.Log(isPaused ? "Game Paused (TimeScale = 0)" : "Game Resumed (TimeScale = 1)");
     }
 
     public void StartRaceCountdown()
@@ -272,6 +312,7 @@ public class RaceManager : MonoBehaviour
 
     public void RestartRace()
     {
+        Time.timeScale = 1f; // Reset time scale on restart
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
