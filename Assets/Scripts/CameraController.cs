@@ -15,9 +15,9 @@ public class CameraController : MonoBehaviour
 
     [Header("Damping / Smoothness")]
     [Tooltip("How smoothly the camera follows the kart's position.")]
-    public float positionSmoothTime = 0.05f;
+    public float positionSmoothTime = 0.08f;
     [Tooltip("How smoothly the camera rotates to face the kart.")]
-    public float rotationSmoothTime = 0.12f;
+    public float rotationSmoothTime = 0.15f;
     [Tooltip("How smoothly the camera responds to the kart's direction changes.")]
     public float directionSmoothTime = 0.4f;
 
@@ -132,18 +132,21 @@ public class CameraController : MonoBehaviour
         {
             introSmoothForward = forwardDir;
         }
-        introSmoothForward = Vector3.Slerp(introSmoothForward, forwardDir, Time.deltaTime * 3.5f);
+        float tIntroForward = 1f - Mathf.Exp(-Time.deltaTime * 3.5f);
+        introSmoothForward = Vector3.Slerp(introSmoothForward, forwardDir, tIntroForward);
 
         // Position camera behind lookahead point and elevated using the smoothed direction vector
         Vector3 cameraTargetPos = posOnPath + Vector3.up * 4.5f - introSmoothForward * 9.0f;
 
         // Smoothly position the camera (adjusted factor for responsive but smooth drone-like follow style)
-        transform.position = Vector3.Lerp(transform.position, cameraTargetPos, Time.deltaTime * 3.8f);
+        float tIntroPos = 1f - Mathf.Exp(-Time.deltaTime * 3.8f);
+        transform.position = Vector3.Lerp(transform.position, cameraTargetPos, tIntroPos);
         
         // Calculate banking/roll angle based on steering curvature (like a racing drone tilting into curves)
         float turnAngle = Vector3.SignedAngle(introSmoothForward, forwardDir, Vector3.up);
         float targetRoll = Mathf.Clamp(-turnAngle * 2.2f, -28f, 28f); // Bank up to 28 degrees
-        introRoll = Mathf.Lerp(introRoll, targetRoll, Time.deltaTime * 5.0f);
+        float tIntroRoll = 1f - Mathf.Exp(-Time.deltaTime * 5.0f);
+        introRoll = Mathf.Lerp(introRoll, targetRoll, tIntroRoll);
 
         // Cinematographically rotate/look at target using Slerp and apply banking rotation
         Vector3 lookAtTarget = posOnPath + introSmoothForward * 6.0f + Vector3.up * 1.2f;
@@ -153,7 +156,8 @@ public class CameraController : MonoBehaviour
             Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
             // Apply roll rotation (Z-axis tilting) relative to local target alignment
             targetRotation = targetRotation * Quaternion.Euler(0f, 0f, introRoll);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 2.8f);
+            float tIntroRot = 1f - Mathf.Exp(-Time.deltaTime * 2.8f);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tIntroRot);
         }
     }
 
@@ -224,14 +228,16 @@ public class CameraController : MonoBehaviour
             // Orbital rotation shot - Increased distance to 9.2f
             Quaternion rotation = Quaternion.Euler(14f, cinemaAngleOffset, 0f);
             Vector3 targetPosition = target.transform.position + rotation * new Vector3(0f, 0f, -9.2f) + Vector3.up * 1.5f;
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 3.5f);
+            float tCinemaPos1 = 1f - Mathf.Exp(-Time.deltaTime * 3.5f);
+            transform.position = Vector3.Lerp(transform.position, targetPosition, tCinemaPos1);
             transform.LookAt(target.transform.position + Vector3.up * 0.6f);
         }
         else if (style == 1)
         {
             // Front track shot (looks back at the kart's front grilles as it drives) - Increased distance to 8.8f
             Vector3 targetPosition = target.transform.position + target.transform.forward * 8.8f + Vector3.up * 1.6f;
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 4f);
+            float tCinemaPos2 = 1f - Mathf.Exp(-Time.deltaTime * 4f);
+            transform.position = Vector3.Lerp(transform.position, targetPosition, tCinemaPos2);
             transform.LookAt(target.transform.position + Vector3.up * 0.6f);
         }
         else
@@ -276,7 +282,8 @@ public class CameraController : MonoBehaviour
 
         if (targetForward.sqrMagnitude > 0.001f)
         {
-            smoothForward = Vector3.Slerp(smoothForward, targetForward, Time.deltaTime / directionSmoothTime);
+            float tDir = 1f - Mathf.Exp(-Time.deltaTime / directionSmoothTime);
+            smoothForward = Vector3.Slerp(smoothForward, targetForward, tDir);
         }
 
         // Check look-behind input via Ctrl keys
@@ -314,7 +321,7 @@ public class CameraController : MonoBehaviour
         
         // Add a slight look-ahead based on speed to help the player navigate curves
         float speed = targetRb != null ? targetRb.linearVelocity.magnitude : 0f;
-        lookAtTarget += target.transform.forward * (speed * 0.06f * lookAheadDirection);
+        lookAtTarget += smoothForward * (speed * 0.06f * lookAheadDirection);
 
         // 4. Position and orient camera with either smooth transition ease-out or standard follow
         if (transitionTimer > 0f)
@@ -356,7 +363,8 @@ public class CameraController : MonoBehaviour
                 // Smoothly interpolate rotation
                 Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
                 Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime / rotationSmoothTime);
+                float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / rotationSmoothTime);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tRotFollow);
             }
         }
 
@@ -364,7 +372,8 @@ public class CameraController : MonoBehaviour
         if (useDynamicFOV && cam != null)
         {
             float targetFOV = Mathf.Lerp(minFOV, maxFOV, speed / fovSpeedThreshold);
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * 4f);
+            float tFOV = 1f - Mathf.Exp(-Time.deltaTime * 4f);
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, tFOV);
         }
     }
 }

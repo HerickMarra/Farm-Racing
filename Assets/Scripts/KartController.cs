@@ -220,6 +220,12 @@ public class KartController : MonoBehaviour
         // letting our script handle all slope alignment and steering rotations without physics rolling the kart.
         rb.constraints = RigidbodyConstraints.FreezeRotation;
 
+        // Disable colliders on visual wheels and their children to prevent physics engine conflicts when wheels are moved in Update/LateUpdate
+        if (frontLeftWheel != null) { foreach (var col in frontLeftWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
+        if (frontRightWheel != null) { foreach (var col in frontRightWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
+        if (rearLeftWheel != null) { foreach (var col in rearLeftWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
+        if (rearRightWheel != null) { foreach (var col in rearRightWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
+
         // Try to auto-find WaypointCircuit if not assigned
         if (waypointCircuit == null)
         {
@@ -1712,7 +1718,13 @@ public class KartController : MonoBehaviour
 
         // Use rb.MoveRotation to update physical orientation smoothly, allowing Unity's 
         // Rigidbody Interpolation to render motion without any camera micro-jitter/teleports!
-        rb.MoveRotation(Quaternion.Slerp(rb.rotation, targetRot, Time.fixedDeltaTime * (isGrounded ? 30f : 10f)));
+        Quaternion newRotation = Quaternion.Slerp(rb.rotation, targetRot, Time.fixedDeltaTime * (isGrounded ? 15f : 10f));
+        rb.MoveRotation(newRotation);
+
+        // Derive updated orientation vectors directly from the new rotation to avoid a 1-frame alignment delay
+        Vector3 newForward = newRotation * Vector3.forward;
+        Vector3 newRight = newRotation * Vector3.right;
+        Vector3 newUp = newRotation * Vector3.up;
 
         // 4. Sideways Friction / Drift Blend (Local-Space Velocity Decomposition)
         if (isGrounded)
@@ -1730,11 +1742,11 @@ public class KartController : MonoBehaviour
             float gripSpeed = isDrifting ? 15f : 3.5f;
             currentGripValue = Mathf.Lerp(currentGripValue, targetGrip, Time.fixedDeltaTime * gripSpeed);
 
-            // We want our forward velocity along transform.forward to match currentSpeed
+            // We want our forward velocity along newForward to match currentSpeed
             float forwardVel = currentSpeed;
 
-            // We want our sideways velocity along transform.right (sliding) to be damped towards 0 based on grip
-            float sidewaysVel = Vector3.Dot(rb.linearVelocity, transform.right);
+            // We want our sideways velocity along newRight (sliding) to be damped towards 0 based on grip
+            float sidewaysVel = Vector3.Dot(rb.linearVelocity, newRight);
             float targetSidewaysVel = 0f;
 
             // Apply centrifugal slide push during drift
@@ -1749,11 +1761,11 @@ public class KartController : MonoBehaviour
 
             float newSidewaysVel = Mathf.Lerp(sidewaysVel, targetSidewaysVel, currentGripValue * Time.fixedDeltaTime * 50f);
 
-            // We want to preserve our vertical velocity along transform.up so gravity, jumps, and ramps act naturally
-            float verticalVel = Vector3.Dot(rb.linearVelocity, transform.up);
+            // We want to preserve our vertical velocity along newUp so gravity, jumps, and ramps act naturally
+            float verticalVel = Vector3.Dot(rb.linearVelocity, newUp);
 
             // Reassemble the velocity vector in local space and assign to Rigidbody
-            rb.linearVelocity = transform.forward * forwardVel + transform.right * newSidewaysVel + transform.up * verticalVel;
+            rb.linearVelocity = newForward * forwardVel + newRight * newSidewaysVel + newUp * verticalVel;
         }
         else
         {

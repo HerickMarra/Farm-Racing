@@ -9531,8 +9531,8 @@ MonoBehaviour:
   distance: 3.45
   height: 2.17
   lookAtOffset: 1.47
-  positionSmoothTime: 0.05
-  rotationSmoothTime: 0.12
+  positionSmoothTime: 0.08
+  rotationSmoothTime: 0.15
   directionSmoothTime: 0.4
   useDynamicFOV: 1
   minFOV: 60
