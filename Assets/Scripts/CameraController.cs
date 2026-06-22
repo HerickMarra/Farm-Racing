@@ -27,6 +27,12 @@ public class CameraController : MonoBehaviour
     public float maxFOV = 74f;
     public float fovSpeedThreshold = 22f;
 
+    [Header("Camera Tilt")]
+    public bool useCameraTilt = true;
+    public float maxTiltAngle = 4.0f;
+    public float tiltSpeed = 5.0f;
+    private float currentTilt = 0f;
+
     // Cinema mode state variables
     private List<KartController> cinemaKarts = new List<KartController>();
     private int cinemaTargetIndex = 0;
@@ -335,6 +341,14 @@ public class CameraController : MonoBehaviour
             Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
             Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
             
+            if (useCameraTilt && target != null)
+            {
+                float steerValue = target.SteeringInput;
+                float targetTilt = -steerValue * maxTiltAngle;
+                currentTilt = Mathf.Lerp(currentTilt, targetTilt, 1f - Mathf.Exp(-Time.deltaTime * tiltSpeed));
+                targetRotation = targetRotation * Quaternion.Euler(0f, 0f, currentTilt);
+            }
+
             transform.position = Vector3.Lerp(transitionStartPos, targetPosition, tCurve);
             transform.rotation = Quaternion.Slerp(transitionStartRot, targetRotation, tCurve);
             
@@ -363,6 +377,15 @@ public class CameraController : MonoBehaviour
                 // Smoothly interpolate rotation
                 Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
                 Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
+                
+                if (useCameraTilt && target != null)
+                {
+                    float steerValue = target.SteeringInput;
+                    float targetTilt = -steerValue * maxTiltAngle;
+                    currentTilt = Mathf.Lerp(currentTilt, targetTilt, 1f - Mathf.Exp(-Time.deltaTime * tiltSpeed));
+                    targetRotation = targetRotation * Quaternion.Euler(0f, 0f, currentTilt);
+                }
+
                 float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / rotationSmoothTime);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tRotFollow);
             }
@@ -371,7 +394,14 @@ public class CameraController : MonoBehaviour
         // 4. Dynamic Field of View
         if (useDynamicFOV && cam != null)
         {
-            float targetFOV = Mathf.Lerp(minFOV, maxFOV, speed / fovSpeedThreshold);
+            float currentMin = minFOV;
+            float currentMax = maxFOV;
+            if (target != null && target.IsBoosting)
+            {
+                currentMin += 5f;
+                currentMax += 12f; // Expand dynamic range during boost
+            }
+            float targetFOV = Mathf.Lerp(currentMin, currentMax, speed / fovSpeedThreshold);
             float tFOV = 1f - Mathf.Exp(-Time.deltaTime * 4f);
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, tFOV);
         }

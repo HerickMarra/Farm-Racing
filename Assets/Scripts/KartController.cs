@@ -2176,4 +2176,14 @@ public class KartController : MonoBehaviour
             }
         }
     }
+
+    public float SteeringInput
+    {
+        get { return steeringInput; }
+    }
+
+    public bool IsBoosting
+    {
+        get { return (nitroBoostTimer > 0f) || (activeBoostTimer > 0f); }
+    }
 }
