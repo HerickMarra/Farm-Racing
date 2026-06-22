@@ -25,6 +25,7 @@ public class RaceManager : MonoBehaviour
     [SerializeField] private GameObject finishPanel;
     [SerializeField] private UnityEngine.UI.Button restartButton;
     [SerializeField] private GameObject pausePanel;
+    [SerializeField] private UnityEngine.Rendering.Volume pauseVolume;
 
     private List<KartController> karts = new List<KartController>();
     private KartController playerKart;
@@ -34,6 +35,11 @@ public class RaceManager : MonoBehaviour
     {
         Time.timeScale = 1f; // Reset time scale in case we reloaded from pause state
         currentState = RaceState.Intro;
+
+        if (pauseVolume != null)
+        {
+            pauseVolume.weight = 0f;
+        }
 
         // 1. Find all karts in the scene
         karts = new List<KartController>(Object.FindObjectsByType<KartController>(FindObjectsSortMode.None));
@@ -138,6 +144,9 @@ public class RaceManager : MonoBehaviour
                 dynamicPausePanel.SetActive(isPaused);
             }
         }
+
+        // Apply smooth blur transition on pause/resume
+        SetBlurWeight(isPaused ? 1f : 0f);
 
         Debug.Log(isPaused ? "Game Paused (TimeScale = 0)" : "Game Resumed (TimeScale = 1)");
     }
@@ -313,7 +322,20 @@ public class RaceManager : MonoBehaviour
     public void RestartRace()
     {
         Time.timeScale = 1f; // Reset time scale on restart
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        string activeSceneName = SceneManager.GetActiveScene().name;
+
+        // If we are using additive scenes (more than 1 scene loaded, e.g. Menu + Map),
+        // we unload and reload the map scene additively using the persistent RadioManager.
+        // This preserves the Menu scene and prevents freezes/bugs.
+        if (SceneManager.sceneCount > 1 && RadioManager.Instance != null)
+        {
+            RadioManager.Instance.ReloadSceneAdditive(activeSceneName);
+        }
+        else
+        {
+            // Fallback for single-scene play (e.g. testing map scene directly in editor)
+            SceneManager.LoadScene(activeSceneName);
+        }
     }
 
     private string GetPositionSuffix(int position)
@@ -331,6 +353,32 @@ public class RaceManager : MonoBehaviour
             case "fazendeiro": return "Fazendeiro";
             default: return rawName;
         }
+    }
+
+    private Coroutine blurCoroutine;
+
+    private void SetBlurWeight(float targetWeight)
+    {
+        if (pauseVolume == null) return;
+        if (blurCoroutine != null) StopCoroutine(blurCoroutine);
+        blurCoroutine = StartCoroutine(FadeBlurRoutine(targetWeight));
+    }
+
+    private IEnumerator FadeBlurRoutine(float targetWeight)
+    {
+        float startWeight = pauseVolume.weight;
+        float elapsed = 0f;
+        float duration = 0.2f; // 200ms smooth transition
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime; // Use unscaled delta time since Time.timeScale = 0 during pause
+            pauseVolume.weight = Mathf.Lerp(startWeight, targetWeight, elapsed / duration);
+            yield return null;
+        }
+
+        pauseVolume.weight = targetWeight;
+        blurCoroutine = null;
     }
 }
 

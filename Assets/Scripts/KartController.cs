@@ -556,17 +556,8 @@ public class KartController : MonoBehaviour
         bool isSteeringActively = Mathf.Abs(steeringInput) > 0.15f;
         if (isGrounded)
         {
-            if (!isDrifting)
-            {
-                // To start the drift, we need to press Space (inputDrift) AND steer actively
-                isDrifting = inputDrift && isSteeringActively;
-            }
-            else
-            {
-                // Once drifting, we stay in drift as long as we are still steering, 
-                // regardless of whether Space is released!
-                isDrifting = isSteeringActively;
-            }
+            // Enter or stay in drift ONLY while the drift button (Space) is held down AND steering actively
+            isDrifting = inputDrift && isSteeringActively;
         }
         else
         {
@@ -1680,7 +1671,8 @@ public class KartController : MonoBehaviour
                         playerSteerLimit *= 0.40f; 
                     }
                 }
-                float actualSteerSpeed = steeringSpeed * (isPlayer ? playerSteerLimit : 1.0f) * driftSteerMultiplier * steerFactor;
+                // AI gets 2x tighter turning limit (2.0f instead of 1.0f) to remain competitive and hold paths precisely
+                float actualSteerSpeed = steeringSpeed * (isPlayer ? playerSteerLimit : 2.0f) * driftSteerMultiplier * steerFactor;
 
                 turnAngle = driftDirection * actualSteerSpeed * steerDirection * Time.fixedDeltaTime;
             }
@@ -1738,8 +1730,8 @@ public class KartController : MonoBehaviour
                 targetGrip = Mathf.Lerp(normalGrip, normalGrip * 0.65f, Mathf.Abs(smoothedSteeringInput));
             }
 
-            // Lerp the grip value. Exiting drift recovers grip slowly (3.5f) for a smooth transition.
-            float gripSpeed = isDrifting ? 15f : 3.5f;
+            // Lerp the grip value. Exiting drift recovers grip quickly (10.0f) for a crisp, instant snap back to normal traction.
+            float gripSpeed = isDrifting ? 15f : 10.0f;
             currentGripValue = Mathf.Lerp(currentGripValue, targetGrip, Time.fixedDeltaTime * gripSpeed);
 
             // We want our forward velocity along newForward to match currentSpeed
@@ -1998,6 +1990,38 @@ public class KartController : MonoBehaviour
         currentPosition = 1;
     }
 
+    // Public method to activate a nitro speed boost
+    public void ActivateNitroBoost(float duration = 2.0f)
+    {
+        nitroBoostTimer = duration;
+        Debug.Log(gameObject.name + " activated boost for " + duration + "s.");
+    }
+
+    // Public method to add boost charges (1, 2, or 3/full)
+    public void AddBoostCharges(int chargesCount)
+    {
+        if (chargesCount <= 0) return;
+
+        float amountToAdd = 0f;
+        if (chargesCount == 1)
+        {
+            amountToAdd = boostActivateCost;
+            currentBoostScore = Mathf.Min(currentBoostScore + amountToAdd, maxBoostScore);
+            Debug.Log($"{gameObject.name} obtained 1 Boost Charge (+{amountToAdd} score). Current: {currentBoostScore}");
+        }
+        else if (chargesCount == 2)
+        {
+            amountToAdd = boostActivateCost * 2f;
+            currentBoostScore = Mathf.Min(currentBoostScore + amountToAdd, maxBoostScore);
+            Debug.Log($"{gameObject.name} obtained 2 Boost Charges (+{amountToAdd} score). Current: {currentBoostScore}");
+        }
+        else if (chargesCount >= 3)
+        {
+            currentBoostScore = maxBoostScore;
+            Debug.Log($"{gameObject.name} fully charged the Boost Bar! Current: {currentBoostScore}");
+        }
+    }
+
     public int CurrentWaypointIndex => currentWaypointIndex;
 
     public float GetRaceProgress()
@@ -2025,28 +2049,6 @@ public class KartController : MonoBehaviour
         return (currentLap - 1) * W + pathPosition;
     }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other != null)
-        {
-            bool isBoost = other.CompareTag("Boost") || other.CompareTag("boost") || other.gameObject.name.ToLower().Contains("boost");
-            if (isBoost)
-            {
-                nitroBoostTimer = 2.0f;
-                Debug.Log(gameObject.name + " activated a BOOST trigger! Deleting the boost object.");
-                
-                // Destroy parent prefab if there is one to remove visuals and physics together, 
-                // but ensure it's not the kart itself.
-                GameObject toDestroy = other.gameObject;
-                if (other.transform.parent != null && !other.transform.parent.IsChildOf(transform) && other.transform.parent.gameObject != gameObject)
-                {
-                    toDestroy = other.transform.parent.gameObject;
-                }
-                
-                Destroy(toDestroy);
-            }
-        }
-    }
 
     private void UpdateParticles()
     {

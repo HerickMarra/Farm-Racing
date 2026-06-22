@@ -63,7 +63,7 @@ public class MainMenuController : MonoBehaviour
 
         List<AsyncOperation> asyncOps = new List<AsyncOperation>();
 
-        // Start loading all scenes additively in background if they are not already loaded
+        // Start loading all scenes additively in background, reloading them if they are already loaded
         foreach (string sceneName in scenesToLoad)
         {
             if (string.IsNullOrEmpty(sceneName)) continue;
@@ -72,8 +72,16 @@ public class MainMenuController : MonoBehaviour
             Scene scene = SceneManager.GetSceneByName(sceneName);
             if (scene.IsValid() && scene.isLoaded)
             {
-                Debug.Log($"Scene {sceneName} is already loaded. Skipping background load.");
-                continue;
+                Debug.Log($"Scene {sceneName} is already loaded. Unloading it first to load a fresh instance...");
+                AsyncOperation unloadOp = SceneManager.UnloadSceneAsync(sceneName);
+                if (unloadOp != null)
+                {
+                    while (!unloadOp.isDone)
+                    {
+                        yield return null;
+                    }
+                }
+                Debug.Log($"Finished unloading scene: {sceneName}");
             }
 
             Debug.Log($"Starting background loading of scene: {sceneName}");

@@ -384,4 +384,47 @@ public class RadioManager : MonoBehaviour
     {
         manualMuffle = muffle;
     }
+
+    /// <summary>
+    /// Safely unloads and reloads a scene additively, keeping other scenes (like Menu Inicial) intact.
+    /// Since RadioManager is DontDestroyOnLoad, it won't be destroyed during the reload process.
+    /// </summary>
+    public void ReloadSceneAdditive(string sceneName)
+    {
+        StartCoroutine(ReloadSceneAdditiveRoutine(sceneName));
+    }
+
+    private IEnumerator ReloadSceneAdditiveRoutine(string sceneName)
+    {
+        Time.timeScale = 1f;
+
+        // 1. Unload the scene if loaded
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (scene.IsValid() && scene.isLoaded)
+        {
+            Debug.Log($"RadioManager: Unloading scene '{sceneName}' additively...");
+            AsyncOperation unloadOp = SceneManager.UnloadSceneAsync(sceneName);
+            while (unloadOp != null && !unloadOp.isDone)
+            {
+                yield return null;
+            }
+            Debug.Log($"RadioManager: Unloaded scene '{sceneName}'.");
+        }
+
+        // 2. Load the scene additively
+        Debug.Log($"RadioManager: Loading scene '{sceneName}' additively...");
+        AsyncOperation loadOp = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+        while (loadOp != null && !loadOp.isDone)
+        {
+            yield return null;
+        }
+
+        // 3. Set the reloaded scene as active
+        Scene loadedScene = SceneManager.GetSceneByName(sceneName);
+        if (loadedScene.IsValid() && loadedScene.isLoaded)
+        {
+            SceneManager.SetActiveScene(loadedScene);
+            Debug.Log($"RadioManager: Set active scene to '{sceneName}'.");
+        }
+    }
 }
