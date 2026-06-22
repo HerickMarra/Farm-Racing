@@ -33,6 +33,11 @@ public class CameraController : MonoBehaviour
     public float tiltSpeed = 5.0f;
     private float currentTilt = 0f;
 
+    [Header("Screen Shake")]
+    private float shakeDuration = 0f;
+    private float shakeIntensity = 0f;
+    private float shakeDecay = 5f;
+
     // Cinema mode state variables
     private List<KartController> cinemaKarts = new List<KartController>();
     private int cinemaTargetIndex = 0;
@@ -79,24 +84,52 @@ public class CameraController : MonoBehaviour
         if (isIntroMode && waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
         {
             UpdateIntroFlyby();
-            return;
         }
-
-        if (isCinemaMode)
+        else if (isCinemaMode)
         {
             UpdateCinemaMode();
-            return;
         }
-
-        // If we don't have a target, or the current target is no longer marked as the player,
-        // dynamically search for the new player-controlled kart!
-        if (target == null || !target.isPlayer)
+        else
         {
-            FindActivePlayerTarget();
-            if (target == null) return;
+            // If we don't have a target, or the current target is no longer marked as the player,
+            // dynamically search for the new player-controlled kart!
+            if (target == null || !target.isPlayer)
+            {
+                FindActivePlayerTarget();
+            }
+
+            if (target != null)
+            {
+                FollowTarget();
+            }
         }
 
-        FollowTarget();
+        ApplyScreenShake();
+    }
+
+    public void TriggerShake(float intensity, float duration, float decay = 5f)
+    {
+        shakeIntensity = intensity;
+        shakeDuration = duration;
+        shakeDecay = decay;
+    }
+
+    private void ApplyScreenShake()
+    {
+        if (shakeDuration > 0f)
+        {
+            Vector3 shakeOffset = Random.insideUnitSphere * shakeIntensity;
+            transform.position += shakeOffset;
+
+            shakeDuration -= Time.deltaTime;
+            shakeIntensity = Mathf.Lerp(shakeIntensity, 0f, Time.deltaTime * shakeDecay);
+
+            if (shakeDuration <= 0f)
+            {
+                shakeDuration = 0f;
+                shakeIntensity = 0f;
+            }
+        }
     }
 
     private void UpdateIntroFlyby()

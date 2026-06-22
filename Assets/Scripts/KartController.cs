@@ -46,6 +46,16 @@ public class KartController : MonoBehaviour
     public ParticleSystem[] driftParticles;
     [Tooltip("Particle systems to play during boost/nitro.")]
     public ParticleSystem[] boostParticles;
+    [Tooltip("Particle system prefab to spawn on metallic collision sparks.")]
+    public ParticleSystem collisionSparksPrefab;
+    [Tooltip("Minimum collision speed/force to trigger sparks and screen shake.")]
+    public float minCollisionForce = 4f;
+    [Tooltip("Maximum collision force used to clamp/scale the screen shake intensity.")]
+    public float maxCollisionForce = 25f;
+    [Tooltip("Maximum screen shake intensity at max collision force.")]
+    public float maxShakeIntensity = 0.5f;
+    [Tooltip("Screen shake duration in seconds.")]
+    public float shakeDuration = 0.25f;
 
     [Header("Boost Meter Settings")]
     [Tooltip("Maximum boost score capacity.")]
@@ -2185,5 +2195,34 @@ public class KartController : MonoBehaviour
     public bool IsBoosting
     {
         get { return (nitroBoostTimer > 0f) || (activeBoostTimer > 0f); }
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        float force = collision.relativeVelocity.magnitude;
+        if (force < minCollisionForce) return;
+
+        if (collisionSparksPrefab != null && collision.contacts != null && collision.contacts.Length > 0)
+        {
+            ContactPoint contact = collision.contacts[0];
+            Vector3 point = contact.point;
+            Vector3 normal = contact.normal;
+            Quaternion rotation = Quaternion.LookRotation(normal);
+            ParticleSystem sparks = Instantiate(collisionSparksPrefab, point, rotation);
+            
+            float duration = sparks.main.duration + sparks.main.startLifetime.constantMax;
+            Destroy(sparks.gameObject, duration);
+        }
+
+        if (isPlayer)
+        {
+            CameraController cameraCtrl = Object.FindAnyObjectByType<CameraController>();
+            if (cameraCtrl != null && cameraCtrl.target == this)
+            {
+                float t = Mathf.InverseLerp(minCollisionForce, maxCollisionForce, force);
+                float intensity = Mathf.Lerp(0.1f, maxShakeIntensity, t);
+                cameraCtrl.TriggerShake(intensity, shakeDuration);
+            }
+        }
     }
 }
