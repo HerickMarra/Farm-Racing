@@ -1,9 +1,25 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 public class KartController : MonoBehaviour
 {
+    public static List<KartController> ActiveKarts = new List<KartController>();
+
+    private void OnEnable()
+    {
+        if (!ActiveKarts.Contains(this))
+        {
+            ActiveKarts.Add(this);
+        }
+    }
+
+    private void OnDisable()
+    {
+        ActiveKarts.Remove(this);
+    }
+
     [Header("Control Settings")]
     [Tooltip("If true, the player controls this kart. If false, the AI controls it.")]
     public bool isPlayer = false;
@@ -161,6 +177,8 @@ public class KartController : MonoBehaviour
     // Cache variables
     private KartController playerKartCached;
     private float playerCacheTimer = 0f;
+    private RaycastHit[] groundHits = new RaycastHit[8];
+    private RaycastHit[] suspensionHits = new RaycastHit[8];
 
     // Drift Boost variables
     private float driftDuration = 0f;
@@ -612,7 +630,7 @@ public class KartController : MonoBehaviour
         float absSpeed = rb != null ? rb.linearVelocity.magnitude : Mathf.Abs(currentSpeed);
         
         // Determine AI mindset dynamically based on race positions
-        int totalKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None).Length;
+        int totalKarts = ActiveKarts.Count;
         mindsetSpeedBoost = 1.0f;
         mindsetAccelBoost = 1.0f;
 
@@ -620,7 +638,7 @@ public class KartController : MonoBehaviour
         {
             // "Estou em primeiro preciso ficar ligado no segundo lugar pra ele não me ultrapassar"
             KartController secondPlaceKart = null;
-            KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+            var allKarts = ActiveKarts;
             foreach (var k in allKarts)
             {
                 if (k.currentPosition == 2)
@@ -748,7 +766,7 @@ public class KartController : MonoBehaviour
             aiOvertakeSideOffset = 0f;
             
             // A. Check for other karts blocking us (NPCs or Player)
-            KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+            var allKarts = ActiveKarts;
             bool foundKartToOvertake = false;
             foreach (var other in allKarts)
             {
@@ -846,7 +864,7 @@ public class KartController : MonoBehaviour
         if (playerKartCached == null || playerCacheTimer <= 0f)
         {
             playerCacheTimer = 2.0f; // Update reference only every 2 seconds instead of every frame
-            KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+            var allKarts = ActiveKarts;
             foreach (var k in allKarts)
             {
                 if (k.isPlayer) { playerKartCached = k; break; }
@@ -1188,7 +1206,7 @@ public class KartController : MonoBehaviour
         if (hit.normal.y > 0.6f)
             return false;
 
-        bool isOtherKart = hit.collider.GetComponentInParent<KartController>() != null;
+        bool isOtherKart = hit.collider.attachedRigidbody != null && hit.collider.attachedRigidbody.TryGetComponent<KartController>(out _);
         if (isOtherKart) return true;
 
         string name = hit.collider.gameObject.name.ToLower();
@@ -1251,20 +1269,22 @@ public class KartController : MonoBehaviour
     {
         // Raycast down to find ground and normal
         // Start 0.5m above the pivot and look down 1.8m.
-        // We use RaycastAll to filter out our own colliders so we never "ground" on ourselves!
-        RaycastHit[] hits = Physics.RaycastAll(transform.position + Vector3.up * 0.5f, Vector3.down, 1.8f);
+        // We use RaycastNonAlloc to filter out our own colliders so we never "ground" on ourselves without GC allocations!
+        int hitCount = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.5f, Vector3.down, groundHits, 1.8f);
         isGrounded = false;
         RaycastHit closestHit = default;
         float closestDist = float.MaxValue;
 
-        foreach (var hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
+            RaycastHit hit = groundHits[i];
+
             // 1. Ignore ourselves and any of our children
             if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
                 continue;
 
             // 2. Ignore other karts completely (using parent check) to prevent flipping when they overlap or touch
-            if (hit.collider.GetComponentInParent<KartController>() != null)
+            if (hit.collider.attachedRigidbody != null && hit.collider.attachedRigidbody.TryGetComponent<KartController>(out _))
                 continue;
 
             // 3. Ignore vertical walls, fences, and steep surfaces. A valid ground normal must have a Y component of at least 0.6.
@@ -1827,16 +1847,18 @@ public class KartController : MonoBehaviour
         
         float targetYOffset = -suspensionRestDistance; // Default fully extended in the air
         
-        RaycastHit[] hits = Physics.RaycastAll(mountPointWorld, -transform.up, rayLength);
+        int hitCount = Physics.RaycastNonAlloc(mountPointWorld, -transform.up, suspensionHits, rayLength);
         float closestDist = float.MaxValue;
         bool grounded = false;
 
-        foreach (var hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
+            RaycastHit hit = suspensionHits[i];
+
             // Ignore ourselves and other karts
             if (hit.collider.gameObject == gameObject || hit.collider.transform.IsChildOf(transform))
                 continue;
-            if (hit.collider.GetComponentInParent<KartController>() != null)
+            if (hit.collider.attachedRigidbody != null && hit.collider.attachedRigidbody.TryGetComponent<KartController>(out _))
                 continue;
 
             // Ignore triggers
@@ -1872,7 +1894,7 @@ public class KartController : MonoBehaviour
         }
 
         // Find all karts in the scene
-        KartController[] allKarts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+        var allKarts = ActiveKarts;
         bool drafting = false;
 
         foreach (var other in allKarts)

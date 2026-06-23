@@ -294,10 +294,10 @@ public class CameraController : MonoBehaviour
 
     private void FindActivePlayerTarget()
     {
-        KartController[] karts = Object.FindObjectsByType<KartController>(FindObjectsSortMode.None);
+        var karts = KartController.ActiveKarts;
         foreach (var kart in karts)
         {
-            if (kart.isPlayer)
+            if (kart != null && kart.isPlayer)
             {
                 target = kart;
                 targetRb = target.GetComponent<Rigidbody>();

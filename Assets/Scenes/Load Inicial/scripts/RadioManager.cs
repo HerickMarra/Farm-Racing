@@ -47,6 +47,7 @@ public class RadioManager : MonoBehaviour
     private GameObject lastNotificationObj;
     private bool cachedOptionsOpen = false;
     private int lastOptionsCheckFrame = -1;
+    private GameObject cachedOptionsPanel;
 
     private void Awake()
     {
@@ -133,11 +134,26 @@ public class RadioManager : MonoBehaviour
             return cachedOptionsOpen;
         }
 
+        if (cachedOptionsPanel != null)
+        {
+            cachedOptionsOpen = cachedOptionsPanel.activeInHierarchy;
+            return cachedOptionsOpen;
+        }
+
         GameObject optionsPanel = GameObject.Find("OptionsMenu");
         if (optionsPanel == null) optionsPanel = GameObject.Find("OptionsPanel");
         if (optionsPanel == null) optionsPanel = GameObject.Find("PainelOpcoes");
 
-        cachedOptionsOpen = (optionsPanel != null && optionsPanel.activeInHierarchy);
+        if (optionsPanel != null)
+        {
+            cachedOptionsPanel = optionsPanel;
+            cachedOptionsOpen = true;
+        }
+        else
+        {
+            cachedOptionsOpen = false;
+        }
+
         return cachedOptionsOpen;
     }
 

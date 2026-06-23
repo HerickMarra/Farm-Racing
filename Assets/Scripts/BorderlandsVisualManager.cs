@@ -22,8 +22,17 @@ public class BorderlandsVisualManager : MonoBehaviour
     private GameObject customPassObj;
     private Material outlineMaterial;
 
+    private int thicknessId;
+    private int colorId;
+    private int depthId;
+    private int normalId;
+
     private void Awake()
     {
+        thicknessId = Shader.PropertyToID("_OutlineThickness");
+        colorId = Shader.PropertyToID("_OutlineColor");
+        depthId = Shader.PropertyToID("_DepthThreshold");
+        normalId = Shader.PropertyToID("_NormalThreshold");
         InitializeEffects();
     }
 
@@ -82,10 +91,10 @@ public class BorderlandsVisualManager : MonoBehaviour
     {
         if (outlineMaterial != null)
         {
-            outlineMaterial.SetFloat("_OutlineThickness", outlineThickness);
-            outlineMaterial.SetColor("_OutlineColor", outlineColor);
-            outlineMaterial.SetFloat("_DepthThreshold", depthThreshold);
-            outlineMaterial.SetFloat("_NormalThreshold", normalThreshold);
+            outlineMaterial.SetFloat(thicknessId, outlineThickness);
+            outlineMaterial.SetColor(colorId, outlineColor);
+            outlineMaterial.SetFloat(depthId, depthThreshold);
+            outlineMaterial.SetFloat(normalId, normalThreshold);
         }
     }
 
