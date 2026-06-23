@@ -118,11 +118,8 @@ public class CameraController : MonoBehaviour
     {
         if (shakeDuration > 0f)
         {
-            Vector3 shakeOffset = Random.insideUnitSphere * shakeIntensity;
-            transform.position += shakeOffset;
-
+            transform.position += Random.insideUnitSphere * shakeIntensity;
             shakeDuration -= Time.deltaTime;
-            shakeIntensity = Mathf.Lerp(shakeIntensity, 0f, Time.deltaTime * shakeDecay);
 
             if (shakeDuration <= 0f)
             {

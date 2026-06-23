@@ -11520,7 +11520,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c0c20842de8e8c040ae9e24e8578d16c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KartController
-  isPlayer: 0
+  isPlayer: 1
   maxSpeed: 22
   acceleration: 12
   deceleration: 8
@@ -13503,6 +13503,9 @@ MonoBehaviour:
   minFOV: 60
   maxFOV: 74
   fovSpeedThreshold: 22
+  useCameraTilt: 1
+  maxTiltAngle: 4
+  tiltSpeed: 5
 --- !u!1 &1832997352
 GameObject:
   m_ObjectHideFlags: 0

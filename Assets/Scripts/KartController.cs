@@ -46,7 +46,7 @@ public class KartController : MonoBehaviour
     public ParticleSystem[] driftParticles;
     [Tooltip("Particle systems to play during boost/nitro.")]
     public ParticleSystem[] boostParticles;
-    [Tooltip("Particle system prefab to spawn on metallic collision sparks.")]
+    [Tooltip("Particle system of metal sparks to instantiate at collision contact points.")]
     public ParticleSystem collisionSparksPrefab;
     [Tooltip("Minimum collision speed/force to trigger sparks and screen shake.")]
     public float minCollisionForce = 4f;
@@ -2202,18 +2202,20 @@ public class KartController : MonoBehaviour
         float force = collision.relativeVelocity.magnitude;
         if (force < minCollisionForce) return;
 
-        if (collisionSparksPrefab != null && collision.contacts != null && collision.contacts.Length > 0)
+        // Instantiate sparks at contact point
+        if (collisionSparksPrefab != null && collision.contactCount > 0)
         {
-            ContactPoint contact = collision.contacts[0];
+            ContactPoint contact = collision.GetContact(0);
             Vector3 point = contact.point;
             Vector3 normal = contact.normal;
+
             Quaternion rotation = Quaternion.LookRotation(normal);
             ParticleSystem sparks = Instantiate(collisionSparksPrefab, point, rotation);
-            
-            float duration = sparks.main.duration + sparks.main.startLifetime.constantMax;
-            Destroy(sparks.gameObject, duration);
+
+            Destroy(sparks.gameObject, sparks.main.duration + sparks.main.startLifetime.constantMax);
         }
 
+        // Only shake the camera if this is the player's kart
         if (isPlayer)
         {
             CameraController cameraCtrl = Object.FindAnyObjectByType<CameraController>();

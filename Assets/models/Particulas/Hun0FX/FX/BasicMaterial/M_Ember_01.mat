@@ -9,15 +9,18 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: M_Ember_01
   m_Shader: {fileID: 4800000, guid: c5587e37583f6ce4cb9e029739d3f07d, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _USEGASALPHA_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 4
-  m_EnableInstancingVariants: 0
+  m_EnableInstancingVariants: 1
   m_DoubleSidedGI: 0
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -134,3 +137,4 @@ Material:
     - _color2: {r: 1, g: 0.6273585, b: 0.6273585, a: 1}
     - _uv: {r: 1, g: 1, b: 0, a: 0}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
