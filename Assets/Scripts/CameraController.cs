@@ -33,10 +33,6 @@ public class CameraController : MonoBehaviour
     public float tiltSpeed = 5.0f;
     private float currentTilt = 0f;
 
-    [Header("Screen Shake")]
-    private float shakeDuration = 0f;
-    private float shakeIntensity = 0f;
-    private float shakeDecay = 5f;
 
     // Cinema mode state variables
     private List<KartController> cinemaKarts = new List<KartController>();
@@ -101,30 +97,6 @@ public class CameraController : MonoBehaviour
             if (target != null)
             {
                 FollowTarget();
-            }
-        }
-
-        ApplyScreenShake();
-    }
-
-    public void TriggerShake(float intensity, float duration, float decay = 5f)
-    {
-        shakeIntensity = intensity;
-        shakeDuration = duration;
-        shakeDecay = decay;
-    }
-
-    private void ApplyScreenShake()
-    {
-        if (shakeDuration > 0f)
-        {
-            transform.position += Random.insideUnitSphere * shakeIntensity;
-            shakeDuration -= Time.deltaTime;
-
-            if (shakeDuration <= 0f)
-            {
-                shakeDuration = 0f;
-                shakeIntensity = 0f;
             }
         }
     }

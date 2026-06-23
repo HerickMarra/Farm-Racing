@@ -64,14 +64,8 @@ public class KartController : MonoBehaviour
     public ParticleSystem[] boostParticles;
     [Tooltip("Particle system of metal sparks to instantiate at collision contact points.")]
     public ParticleSystem collisionSparksPrefab;
-    [Tooltip("Minimum collision speed/force to trigger sparks and screen shake.")]
+    [Tooltip("Minimum collision speed/force to trigger sparks.")]
     public float minCollisionForce = 4f;
-    [Tooltip("Maximum collision force used to clamp/scale the screen shake intensity.")]
-    public float maxCollisionForce = 25f;
-    [Tooltip("Maximum screen shake intensity at max collision force.")]
-    public float maxShakeIntensity = 0.5f;
-    [Tooltip("Screen shake duration in seconds.")]
-    public float shakeDuration = 0.25f;
 
     [Header("Boost Meter Settings")]
     [Tooltip("Maximum boost score capacity.")]
@@ -2235,18 +2229,6 @@ public class KartController : MonoBehaviour
             ParticleSystem sparks = Instantiate(collisionSparksPrefab, point, rotation);
 
             Destroy(sparks.gameObject, sparks.main.duration + sparks.main.startLifetime.constantMax);
-        }
-
-        // Only shake the camera if this is the player's kart
-        if (isPlayer)
-        {
-            CameraController cameraCtrl = Object.FindAnyObjectByType<CameraController>();
-            if (cameraCtrl != null && cameraCtrl.target == this)
-            {
-                float t = Mathf.InverseLerp(minCollisionForce, maxCollisionForce, force);
-                float intensity = Mathf.Lerp(0.1f, maxShakeIntensity, t);
-                cameraCtrl.TriggerShake(intensity, shakeDuration);
-            }
         }
     }
 }
