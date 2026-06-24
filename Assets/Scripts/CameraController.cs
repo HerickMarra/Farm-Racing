@@ -47,6 +47,7 @@ public class CameraController : MonoBehaviour
     private Camera cam;
     private Rigidbody targetRb;
     private bool wasLookingBehind = false;
+    private float smoothedSpeed = 0f;
 
     // Intro mode variables
     private bool isIntroMode = true;
@@ -313,9 +314,9 @@ public class CameraController : MonoBehaviour
         // 2. Determine target position based on direction multiplier
         Vector3 targetPosition = target.transform.position + (smoothForward * distance * dirMultiplier) + (Vector3.up * height);
 
-        // Simple raycast to prevent camera clipping through ground or low scenery
+        // Simple raycast to prevent camera clipping through ground or low scenery (ignoring trigger colliders)
         RaycastHit hit;
-        if (Physics.Raycast(target.transform.position + Vector3.up * 0.5f, (targetPosition - target.transform.position).normalized, out hit, distance))
+        if (Physics.Raycast(target.transform.position + Vector3.up * 0.5f, (targetPosition - target.transform.position).normalized, out hit, distance, ~0, QueryTriggerInteraction.Ignore))
         {
             // If we hit something (except ourselves), pull camera forward
             if (hit.collider.gameObject != target.gameObject && !hit.collider.transform.IsChildOf(target.transform))
@@ -327,9 +328,12 @@ public class CameraController : MonoBehaviour
         // 3. Determine looking direction
         Vector3 lookAtTarget = target.transform.position + Vector3.up * lookAtOffset;
         
-        // Add a slight look-ahead based on speed to help the player navigate curves
-        float speed = targetRb != null ? targetRb.linearVelocity.magnitude : 0f;
-        lookAtTarget += smoothForward * (speed * 0.06f * lookAheadDirection);
+        // Add a slight look-ahead based on speed to help the player navigate curves (using frame-rate independent speed smoothing)
+        float rawSpeed = targetRb != null ? targetRb.linearVelocity.magnitude : 0f;
+        float tSpeed = 1f - Mathf.Exp(-Time.deltaTime * 6.0f);
+        smoothedSpeed = Mathf.Lerp(smoothedSpeed, rawSpeed, tSpeed);
+
+        lookAtTarget += smoothForward * (smoothedSpeed * 0.06f * lookAheadDirection);
 
         // 4. Position and orient camera with either smooth transition ease-out or standard follow
         if (transitionTimer > 0f)
@@ -393,7 +397,7 @@ public class CameraController : MonoBehaviour
             }
         }
 
-        // 4. Dynamic Field of View
+        // 4. Dynamic Field of View (using smoothed speed)
         if (useDynamicFOV && cam != null)
         {
             float currentMin = minFOV;
@@ -403,7 +407,7 @@ public class CameraController : MonoBehaviour
                 currentMin += 5f;
                 currentMax += 12f; // Expand dynamic range during boost
             }
-            float targetFOV = Mathf.Lerp(currentMin, currentMax, speed / fovSpeedThreshold);
+            float targetFOV = Mathf.Lerp(currentMin, currentMax, smoothedSpeed / fovSpeedThreshold);
             float tFOV = 1f - Mathf.Exp(-Time.deltaTime * 4f);
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, tFOV);
         }
