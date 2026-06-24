@@ -9,6 +9,7 @@ public class KartController : MonoBehaviour
 
     private void OnEnable()
     {
+        ActiveKarts.RemoveAll(k => k == null);
         if (!ActiveKarts.Contains(this))
         {
             ActiveKarts.Add(this);
@@ -18,6 +19,13 @@ public class KartController : MonoBehaviour
     private void OnDisable()
     {
         ActiveKarts.Remove(this);
+        ActiveKarts.RemoveAll(k => k == null);
+    }
+
+    private void OnDestroy()
+    {
+        ActiveKarts.Remove(this);
+        ActiveKarts.RemoveAll(k => k == null);
     }
 
     [Header("Control Settings")]
@@ -635,6 +643,7 @@ public class KartController : MonoBehaviour
             var allKarts = ActiveKarts;
             foreach (var k in allKarts)
             {
+                if (k == null) continue;
                 if (k.currentPosition == 2)
                 {
                     secondPlaceKart = k;
@@ -764,7 +773,7 @@ public class KartController : MonoBehaviour
             bool foundKartToOvertake = false;
             foreach (var other in allKarts)
             {
-                if (other == this) continue;
+                if (other == null || other == this) continue;
 
                 Vector3 toOther = other.transform.position - transform.position;
                 float distanceToOther = toOther.magnitude;
@@ -861,7 +870,7 @@ public class KartController : MonoBehaviour
             var allKarts = ActiveKarts;
             foreach (var k in allKarts)
             {
-                if (k.isPlayer) { playerKartCached = k; break; }
+                if (k != null && k.isPlayer) { playerKartCached = k; break; }
             }
         }
 
@@ -1893,7 +1902,7 @@ public class KartController : MonoBehaviour
 
         foreach (var other in allKarts)
         {
-            if (other == this || other.isPlayer) continue;
+            if (other == null || other == this || other.isPlayer) continue;
 
             // Calculate distance and relative direction
             Vector3 diff = other.transform.position - transform.position;

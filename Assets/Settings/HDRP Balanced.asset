@@ -325,7 +325,7 @@ MonoBehaviour:
       directionalShadowFilteringQuality: 1
       areaShadowFilteringQuality: 0
       punctualLightShadowAtlas:
-        shadowAtlasResolution: 4096
+        shadowAtlasResolution: 2048
         shadowAtlasDepthBits: 16
         useDynamicViewportRescale: 1
       areaLightShadowAtlas:
@@ -367,10 +367,11 @@ MonoBehaviour:
       lutFormat: 48
       bufferFormat: 74
     dynamicResolutionSettings:
-      enabled: 0
+      enabled: 1
       useMipBias: 0
-      advancedUpscalersByPriority: 
-      advancedUpscalerNames: []
+      advancedUpscalersByPriority: 00
+      advancedUpscalerNames:
+      - STP
       DLSSPerfQualitySetting: 0
       DLSSInjectionPoint: 0
       TAAUInjectionPoint: 0
@@ -391,9 +392,9 @@ MonoBehaviour:
       fsrOverrideSharpness: 0
       fsrSharpness: 0.92
       maxPercentage: 100
-      minPercentage: 100
+      minPercentage: 70
       dynResType: 1
-      upsampleFilter: 1
+      upsampleFilter: 5
       forceResolution: 0
       forcedPercentage: 100
       lowResTransparencyMinimumThreshold: 0
