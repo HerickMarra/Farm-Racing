@@ -1680,8 +1680,15 @@ public class KartController : MonoBehaviour
             {
                 // Physical drift steering: turn the actual Rigidbody slower so the kart slides in a wide arc
                 // rather than spinning/rotating rapidly on its own axis (which causes donut/zerinho loops)
+                float baseSteerFactor = (0.35f + (steeringInput * driftDirection) * 0.35f);
+                if (IsBoosting)
+                {
+                    // Give slightly more steering authority under boost to help turn in
+                    baseSteerFactor = (0.45f + (steeringInput * driftDirection) * 0.45f);
+                }
+                
                 float steerFactor = isPlayer 
-                    ? (0.35f + (steeringInput * driftDirection) * 0.35f) // ranges from 0.00f (flat slide) to 0.70f (sharp turn) for player
+                    ? baseSteerFactor // ranges from 0.00f (flat slide) to 0.70f (or 0.90f in boost) for player
                     : (0.35f + (steeringInput * driftDirection) * 0.25f); // AI keeps default behavior for pathing
                 
                 // Brake-Drift: if not accelerating (throttleInput <= 0.1f) during drift, slightly scale steer rate
@@ -1702,6 +1709,12 @@ public class KartController : MonoBehaviour
                     {
                         // Reduce turn speed by 60% when Space is released, opening up the drift curve dynamically!
                         playerSteerLimit *= 0.40f; 
+                    }
+
+                    if (IsBoosting)
+                    {
+                        // Increase maximum physical steering limit by 35% under boost to tighten the curve
+                        playerSteerLimit *= 1.35f;
                     }
                 }
                 // AI gets 2x tighter turning limit (2.0f instead of 1.0f) to remain competitive and hold paths precisely
@@ -1780,6 +1793,13 @@ public class KartController : MonoBehaviour
                 // Drift push force: slide outwards from the locked drift direction
                 // Scale slide magnitude dynamically: counter-steer reduces sliding, steer-in slides wider!
                 float steerSlideFactor = driftSlipFactor + (steeringInput * driftDirection) * driftSlipSteerInfluence;
+                
+                // If boosting, reduce lateral slide factor to keep the drift tight and locked to the road
+                if (IsBoosting)
+                {
+                    steerSlideFactor *= 0.55f; // Reduce sliding outwards by 45%
+                }
+                
                 float driftPush = -driftDirection * currentSpeed * steerSlideFactor;
                 targetSidewaysVel = driftPush;
             }
