@@ -63,6 +63,11 @@ public class CameraController : MonoBehaviour
 
     private void Start()
     {
+        // Auto-optimize default damping parameters if they match the old sluggish defaults (which caused heavy lag)
+        if (Mathf.Approximately(directionSmoothTime, 0.4f)) directionSmoothTime = 0.18f;
+        if (Mathf.Approximately(rotationSmoothTime, 0.15f)) rotationSmoothTime = 0.08f;
+        if (Mathf.Approximately(positionSmoothTime, 0.08f)) positionSmoothTime = 0.05f;
+
         cam = GetComponent<Camera>();
         FindActivePlayerTarget();
         if (target != null)
@@ -284,14 +289,39 @@ public class CameraController : MonoBehaviour
     {
         if (target == null) return;
 
-        // 1. Smoothly interpolate the tracking direction
+        // 1. Smoothly interpolate the tracking direction (blending forward and actual physical velocity)
         Vector3 targetForward = target.transform.forward;
-        targetForward.y = 0f;
-        targetForward.Normalize();
+        if (targetRb != null && targetRb.linearVelocity.sqrMagnitude > 1.0f)
+        {
+            Vector3 velForward = targetRb.linearVelocity.normalized;
+            velForward.y = 0f;
+            velForward.Normalize();
+            
+            if (velForward.sqrMagnitude > 0.001f)
+            {
+                // During drift, heavily follow velocity vector to prevent camera snapping/jitter
+                // In normal driving, blend it slightly for smooth steering transitions
+                float blendFactor = target.IsDrifting ? 0.85f : 0.65f;
+                float speedPercent = Mathf.Clamp01(targetRb.linearVelocity.magnitude / 8f);
+                targetForward = Vector3.Slerp(target.transform.forward, velForward, speedPercent * blendFactor).normalized;
+            }
+        }
+        else
+        {
+            targetForward.y = 0f;
+            targetForward.Normalize();
+        }
 
         if (targetForward.sqrMagnitude > 0.001f)
         {
-            float tDir = 1f - Mathf.Exp(-Time.deltaTime / directionSmoothTime);
+            // Dynamically speed up tracking response during active drift to reduce visual lag
+            float activeDirectionSmooth = directionSmoothTime;
+            if (target.IsDrifting)
+            {
+                activeDirectionSmooth *= 0.5f; // Reacts 50% faster
+            }
+            
+            float tDir = 1f - Mathf.Exp(-Time.deltaTime / activeDirectionSmooth);
             smoothForward = Vector3.Slerp(smoothForward, targetForward, tDir);
         }
 
@@ -392,7 +422,13 @@ public class CameraController : MonoBehaviour
                     targetRotation = targetRotation * Quaternion.Euler(0f, 0f, currentTilt);
                 }
 
-                float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / rotationSmoothTime);
+                // Dynamically speed up rotation tracking during drift to keep up with the slide
+                float activeRotationSmooth = rotationSmoothTime;
+                if (target != null && target.IsDrifting)
+                {
+                    activeRotationSmooth *= 0.6f; // Rotate 40% faster during active drift
+                }
+                float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / activeRotationSmooth);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tRotFollow);
             }
         }
@@ -402,10 +438,18 @@ public class CameraController : MonoBehaviour
         {
             float currentMin = minFOV;
             float currentMax = maxFOV;
-            if (target != null && target.IsBoosting)
+            if (target != null)
             {
-                currentMin += 5f;
-                currentMax += 12f; // Expand dynamic range during boost
+                if (target.IsBoosting)
+                {
+                    currentMin += 5f;
+                    currentMax += 12f; // Expand dynamic range during boost
+                }
+                else if (target.IsDrifting)
+                {
+                    currentMin += 3f;
+                    currentMax += 7f; // Expand range slightly during drift for better track view
+                }
             }
             float targetFOV = Mathf.Lerp(currentMin, currentMax, smoothedSpeed / fovSpeedThreshold);
             float tFOV = 1f - Mathf.Exp(-Time.deltaTime * 4f);

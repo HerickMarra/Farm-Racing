@@ -2222,6 +2222,11 @@ public class KartController : MonoBehaviour
         get { return (nitroBoostTimer > 0f) || (activeBoostTimer > 0f); }
     }
 
+    public bool IsDrifting
+    {
+        get { return isDrifting; }
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         float force = collision.relativeVelocity.magnitude;
