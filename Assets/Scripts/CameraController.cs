@@ -46,8 +46,9 @@ public class CameraController : MonoBehaviour
     private Vector3 smoothForward;
     private Camera cam;
     private Rigidbody targetRb;
-    private bool wasLookingBehind = false;
     private float smoothedSpeed = 0f;
+    private Vector3 smoothedVelocityDir = Vector3.forward;
+    private bool wasLookingBehind = false;
 
     // Intro mode variables
     private bool isIntroMode = true;
@@ -293,17 +294,21 @@ public class CameraController : MonoBehaviour
         Vector3 targetForward = target.transform.forward;
         if (targetRb != null && targetRb.linearVelocity.sqrMagnitude > 1.0f)
         {
-            Vector3 velForward = targetRb.linearVelocity.normalized;
-            velForward.y = 0f;
-            velForward.Normalize();
+            Vector3 rawVelDir = targetRb.linearVelocity.normalized;
+            rawVelDir.y = 0f;
+            rawVelDir.Normalize();
             
-            if (velForward.sqrMagnitude > 0.001f)
+            if (rawVelDir.sqrMagnitude > 0.001f)
             {
+                // Smooth the physical velocity vector in the render loop to eliminate discrete physics steps/stuttering
+                float tVelSmooth = 1f - Mathf.Exp(-Time.deltaTime * 10f); // 100ms direction smoothing
+                smoothedVelocityDir = Vector3.Slerp(smoothedVelocityDir, rawVelDir, tVelSmooth).normalized;
+
                 // During drift, heavily follow velocity vector to prevent camera snapping/jitter
                 // In normal driving, blend it slightly for smooth steering transitions
                 float blendFactor = target.IsDrifting ? 0.85f : 0.65f;
-                float speedPercent = Mathf.Clamp01(targetRb.linearVelocity.magnitude / 8f);
-                targetForward = Vector3.Slerp(target.transform.forward, velForward, speedPercent * blendFactor).normalized;
+                float speedPercent = Mathf.Clamp01(smoothedSpeed / 8f);
+                targetForward = Vector3.Slerp(target.transform.forward, smoothedVelocityDir, speedPercent * blendFactor).normalized;
             }
         }
         else

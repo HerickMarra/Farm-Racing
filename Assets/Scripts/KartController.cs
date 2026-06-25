@@ -234,6 +234,13 @@ public class KartController : MonoBehaviour
     private InputAction moveAction;
     private InputAction driftAction;
 
+    private void Awake()
+    {
+        // Synchronize physics to 60 Hz to eliminate temporal beat-aliasing stutters.
+        // At 30 FPS, this guarantees a perfect 2:1 ratio (exactly 2 physics updates per render frame).
+        Time.fixedDeltaTime = 0.0166667f;
+    }
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -259,13 +266,13 @@ public class KartController : MonoBehaviour
         // Create and apply a frictionless PhysicMaterial to the main kart collider.
         // This prevents Unity's default physics friction from fighting with our custom linearVelocity script updates,
         // eliminating micro-stutters and sliding jitters on uneven road polygons.
-        PhysicMaterial frictionlessMaterial = new PhysicMaterial("FrictionlessKartMaterial")
+        PhysicsMaterial frictionlessMaterial = new PhysicsMaterial("FrictionlessKartMaterial")
         {
             dynamicFriction = 0f,
             staticFriction = 0f,
-            frictionCombine = PhysicMaterialCombine.Minimum,
+            frictionCombine = PhysicsMaterialCombine.Minimum,
             bounciness = 0f,
-            bounceCombine = PhysicMaterialCombine.Minimum
+            bounceCombine = PhysicsMaterialCombine.Minimum
         };
         Collider mainCollider = GetComponent<Collider>();
         if (mainCollider != null)
@@ -1826,8 +1833,12 @@ public class KartController : MonoBehaviour
             // We want to preserve our vertical velocity along newUp so gravity, jumps, and ramps act naturally
             float verticalVel = Vector3.Dot(rb.linearVelocity, newUp);
 
-            // Reassemble the velocity vector in local space and assign to Rigidbody
-            rb.linearVelocity = newForward * forwardVel + newRight * newSidewaysVel + newUp * verticalVel;
+            // Reassemble the velocity vector in local space and apply via ForceMode.VelocityChange.
+            // This applies the exact velocity instantly without clearing Unity's internal physics interpolation cache,
+            // which prevents micro-jitters and teleports on low framerates.
+            Vector3 targetVelocity = newForward * forwardVel + newRight * newSidewaysVel + newUp * verticalVel;
+            Vector3 velocityChange = targetVelocity - rb.linearVelocity;
+            rb.AddForce(velocityChange, ForceMode.VelocityChange);
         }
         else
         {
