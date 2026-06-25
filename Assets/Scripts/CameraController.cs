@@ -292,7 +292,11 @@ public class CameraController : MonoBehaviour
 
         // 1. Smoothly interpolate the tracking direction (blending forward and actual physical velocity)
         Vector3 targetForward = target.transform.forward;
-        if (targetRb != null && targetRb.linearVelocity.sqrMagnitude > 1.0f)
+        
+        // Only blend with velocity vector if the kart is moving forward (to prevent camera flipping on reverse/S key)
+        bool isMovingForward = targetRb != null && Vector3.Dot(targetRb.linearVelocity, target.transform.forward) >= 0f;
+        
+        if (targetRb != null && isMovingForward && targetRb.linearVelocity.sqrMagnitude > 1.0f)
         {
             Vector3 rawVelDir = targetRb.linearVelocity.normalized;
             rawVelDir.y = 0f;
@@ -313,8 +317,10 @@ public class CameraController : MonoBehaviour
         }
         else
         {
+            // If reversing or stationary, track the raw chassi forward vector to keep the camera behind the kart
             targetForward.y = 0f;
             targetForward.Normalize();
+            smoothedVelocityDir = targetForward; // Align cache to prevent jumps on acceleration
         }
 
         if (targetForward.sqrMagnitude > 0.001f)
