@@ -256,6 +256,23 @@ public class KartController : MonoBehaviour
         if (rearLeftWheel != null) { foreach (var col in rearLeftWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
         if (rearRightWheel != null) { foreach (var col in rearRightWheel.GetComponentsInChildren<Collider>()) col.enabled = false; }
 
+        // Create and apply a frictionless PhysicMaterial to the main kart collider.
+        // This prevents Unity's default physics friction from fighting with our custom linearVelocity script updates,
+        // eliminating micro-stutters and sliding jitters on uneven road polygons.
+        PhysicMaterial frictionlessMaterial = new PhysicMaterial("FrictionlessKartMaterial")
+        {
+            dynamicFriction = 0f,
+            staticFriction = 0f,
+            frictionCombine = PhysicMaterialCombine.Minimum,
+            bounciness = 0f,
+            bounceCombine = PhysicMaterialCombine.Minimum
+        };
+        Collider mainCollider = GetComponent<Collider>();
+        if (mainCollider != null)
+        {
+            mainCollider.material = frictionlessMaterial;
+        }
+
         // Try to auto-find WaypointCircuit if not assigned
         if (waypointCircuit == null)
         {
@@ -810,8 +827,8 @@ public class KartController : MonoBehaviour
                 bool hitObstacle = false;
                 float obstacleOffsetDir = 0f;
 
-                // Center sensor
-                if (Physics.Raycast(centerRayStart, transform.forward, out hit, checkDistance))
+                // Center sensor (ignoring trigger colliders)
+                if (Physics.Raycast(centerRayStart, transform.forward, out hit, checkDistance, ~0, QueryTriggerInteraction.Ignore))
                 {
                     if (IsValidObstacle(hit))
                     {
@@ -821,8 +838,8 @@ public class KartController : MonoBehaviour
                     }
                 }
 
-                // Left sensor (angled slightly outwards)
-                if (!hitObstacle && Physics.Raycast(leftRayStart, Quaternion.Euler(0f, -18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
+                // Left sensor (angled slightly outwards, ignoring trigger colliders)
+                if (!hitObstacle && Physics.Raycast(leftRayStart, Quaternion.Euler(0f, -18f, 0f) * transform.forward, out hit, checkDistance * 0.8f, ~0, QueryTriggerInteraction.Ignore))
                 {
                     if (IsValidObstacle(hit))
                     {
@@ -831,8 +848,8 @@ public class KartController : MonoBehaviour
                     }
                 }
 
-                // Right sensor (angled slightly outwards)
-                if (!hitObstacle && Physics.Raycast(rightRayStart, Quaternion.Euler(0f, 18f, 0f) * transform.forward, out hit, checkDistance * 0.8f))
+                // Right sensor (angled slightly outwards, ignoring trigger colliders)
+                if (!hitObstacle && Physics.Raycast(rightRayStart, Quaternion.Euler(0f, 18f, 0f) * transform.forward, out hit, checkDistance * 0.8f, ~0, QueryTriggerInteraction.Ignore))
                 {
                     if (IsValidObstacle(hit))
                     {
@@ -1273,7 +1290,7 @@ public class KartController : MonoBehaviour
         // Raycast down to find ground and normal
         // Start 0.5m above the pivot and look down 1.8m.
         // We use RaycastNonAlloc to filter out our own colliders so we never "ground" on ourselves without GC allocations!
-        int hitCount = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.5f, Vector3.down, groundHits, 1.8f);
+        int hitCount = Physics.RaycastNonAlloc(transform.position + Vector3.up * 0.5f, Vector3.down, groundHits, 1.8f, ~0, QueryTriggerInteraction.Ignore);
         isGrounded = false;
         RaycastHit closestHit = default;
         float closestDist = float.MaxValue;
@@ -1382,7 +1399,7 @@ public class KartController : MonoBehaviour
                 if (currentSpeed > 0.1f)
                 {
                     RaycastHit wallHit;
-                    if (Physics.Raycast(transform.position + Vector3.up * 0.45f, transform.forward, out wallHit, 1.2f))
+                    if (Physics.Raycast(transform.position + Vector3.up * 0.45f, transform.forward, out wallHit, 1.2f, ~0, QueryTriggerInteraction.Ignore))
                     {
                         if (!wallHit.collider.isTrigger && wallHit.collider.gameObject != gameObject && !wallHit.collider.transform.IsChildOf(transform))
                         {
@@ -1396,7 +1413,7 @@ public class KartController : MonoBehaviour
                 else if (currentSpeed < -0.1f)
                 {
                     RaycastHit wallHit;
-                    if (Physics.Raycast(transform.position + Vector3.up * 0.45f, -transform.forward, out wallHit, 1.2f))
+                    if (Physics.Raycast(transform.position + Vector3.up * 0.45f, -transform.forward, out wallHit, 1.2f, ~0, QueryTriggerInteraction.Ignore))
                     {
                         if (!wallHit.collider.isTrigger && wallHit.collider.gameObject != gameObject && !wallHit.collider.transform.IsChildOf(transform))
                         {
@@ -1870,7 +1887,7 @@ public class KartController : MonoBehaviour
         
         float targetYOffset = -suspensionRestDistance; // Default fully extended in the air
         
-        int hitCount = Physics.RaycastNonAlloc(mountPointWorld, -transform.up, suspensionHits, rayLength);
+        int hitCount = Physics.RaycastNonAlloc(mountPointWorld, -transform.up, suspensionHits, rayLength, ~0, QueryTriggerInteraction.Ignore);
         float closestDist = float.MaxValue;
         bool grounded = false;
 
