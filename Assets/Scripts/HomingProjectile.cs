@@ -10,19 +10,19 @@ public class HomingProjectile : MonoBehaviour
 {
     [Header("Movement")]
     [Tooltip("Current flight speed (m/s). When 'Use Dynamic Speed' is enabled this is recomputed at launch from the target's speed.")]
-    public float speed = 55f;
+    public float speed = 75f;
     [Tooltip("How fast the projectile can correct its heading (degrees per second). Lower = wider, lazier curves.")]
-    public float turnRate = 180f;
+    public float turnRate = 320f;
     [Tooltip("Maximum time (in seconds) the projectile may exist. If it does not hit a target within this time it self-destructs.")]
     public float lifetime = 8f;
 
     [Header("Dynamic Speed (Balancing)")]
     [Tooltip("If ON, the missile speed is based on the locked target's current speed at launch instead of the fixed 'speed' value above.")]
-    public bool useDynamicSpeed = false;
+    public bool useDynamicSpeed = true;
     [Tooltip("Extra speed added on top of the target's current speed so the missile can catch a kart driving at normal speed.")]
     public float catchUpBonus = 35f;
     [Tooltip("Lowest speed the missile can ever fly at (prevents it from crawling when the target is slow or stopped).")]
-    public float minSpeed = 22f;
+    public float minSpeed = 45f;
     [Tooltip("The missile speed is capped this many m/s BELOW the target's Drift/Boost top speed, so a kart that boosts at the right moment can escape.")]
     public float escapeMargin = 3f;
 
@@ -127,9 +127,10 @@ public class HomingProjectile : MonoBehaviour
     /// </summary>
     protected virtual float ComputeDynamicSpeed(KartController targetKart)
     {
-        // No slowdown caps or target-state brakes. Strictly target speed + catchUpBonus.
-        float desired = targetKart.CurrentSpeed + catchUpBonus;
-        return Mathf.Clamp(desired, minSpeed, 60f);
+        // Dynamic speed is exactly twice the speed of the target kart.
+        float desired = targetKart.CurrentSpeed * 2.0f;
+        // Clamp between our high minimum speed floor (45 m/s) and a high maximum speed limit (100 m/s)
+        return Mathf.Clamp(desired, minSpeed, 100f);
     }
 
     protected virtual Vector3 GetTargetPoint()
