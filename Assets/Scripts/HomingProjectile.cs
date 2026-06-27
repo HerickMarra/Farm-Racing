@@ -10,9 +10,9 @@ public class HomingProjectile : MonoBehaviour
 {
     [Header("Movement")]
     [Tooltip("Current flight speed (m/s). When 'Use Dynamic Speed' is enabled this is recomputed at launch from the target's speed.")]
-    public float speed = 36f;
+    public float speed = 55f;
     [Tooltip("How fast the projectile can correct its heading (degrees per second). Lower = wider, lazier curves.")]
-    public float turnRate = 160f;
+    public float turnRate = 180f;
     [Tooltip("Maximum time (in seconds) the projectile may exist. If it does not hit a target within this time it self-destructs.")]
     public float lifetime = 8f;
 
@@ -20,9 +20,9 @@ public class HomingProjectile : MonoBehaviour
     [Tooltip("If ON, the missile speed is based on the locked target's current speed at launch instead of the fixed 'speed' value above.")]
     public bool useDynamicSpeed = true;
     [Tooltip("Extra speed added on top of the target's current speed so the missile can catch a kart driving at normal speed.")]
-    public float catchUpBonus = 18f;
+    public float catchUpBonus = 35f;
     [Tooltip("Lowest speed the missile can ever fly at (prevents it from crawling when the target is slow or stopped).")]
-    public float minSpeed = 16f;
+    public float minSpeed = 22f;
     [Tooltip("The missile speed is capped this many m/s BELOW the target's Drift/Boost top speed, so a kart that boosts at the right moment can escape.")]
     public float escapeMargin = 3f;
 
@@ -127,27 +127,42 @@ public class HomingProjectile : MonoBehaviour
     /// </summary>
     protected virtual float ComputeDynamicSpeed(KartController targetKart)
     {
-        float activeBonus = catchUpBonus; // Default cruise bonus (18f)
+        float activeBonus = catchUpBonus; // Default cruise bonus (35f)
 
         if (targetKart.IsDrifting)
         {
-            // If the target is drifting, slow the projectile down significantly
-            // to give them a window to complete the curve and dodge it.
-            activeBonus = 2.0f;
+            // Slow the projectile down during target drift to allow curve evasion
+            activeBonus = 8.0f;
         }
         else if (targetKart.IsBoosting)
         {
-            // Moderate bonus during boost (clamped below by the escapeCap)
-            activeBonus = 6.0f;
+            // Moderate catch-up during boost
+            activeBonus = 12.0f;
+        }
+        else
+        {
+            // Very fast catch-up when target is driving normally
+            activeBonus = 35.0f;
         }
 
         // Pace needed to catch a kart cruising at its current speed.
         float desired = targetKart.CurrentSpeed + activeBonus;
 
-        // Hard cap: must be slower than a boosting/drifting kart so the boost/drift is a real escape.
-        float escapeCap = Mathf.Max(minSpeed, targetKart.BoostedTopSpeed - escapeMargin);
+        // By default, allow the missile to fly super fast (up to 60 m/s)
+        float maxAllowedSpeed = 60f;
 
-        return Mathf.Clamp(desired, minSpeed, escapeCap);
+        if (targetKart.IsBoosting)
+        {
+            // Only cap below boost speed if target is actively boosting
+            maxAllowedSpeed = Mathf.Max(minSpeed, targetKart.BoostedTopSpeed - escapeMargin);
+        }
+        else if (targetKart.IsDrifting)
+        {
+            // Cap below normal max speed if target is drifting
+            maxAllowedSpeed = Mathf.Max(minSpeed, targetKart.MaxSpeed + 4.0f);
+        }
+
+        return Mathf.Clamp(desired, minSpeed, maxAllowedSpeed);
     }
 
     protected virtual Vector3 GetTargetPoint()

@@ -7,9 +7,22 @@ public class ProjectileSpecialAbility : SpecialAbility
     public GameObject projectilePrefab;
     public float spawnOffset = 2.5f;
 
-    public override void Activate(KartController user, bool forward)
+    // Straight-shot projectile: can fire forward even without a locked target (e.g. green shell).
+    public override bool RequiresTarget => false;
+
+    public override void Activate(KartController user, KartController target)
     {
-        Vector3 spawnDirection = forward ? user.transform.forward : -user.transform.forward;
+        // Aim at the target if one is locked, otherwise just fire straight ahead.
+        Vector3 spawnDirection;
+        if (target != null)
+        {
+            spawnDirection = (target.transform.position - user.transform.position).normalized;
+        }
+        else
+        {
+            spawnDirection = user.transform.forward;
+        }
+
         Vector3 spawnPosition = user.transform.position + spawnDirection * spawnOffset + Vector3.up * 0.5f;
 
         GameObject projGo;

@@ -2615,7 +2615,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KartController
   hasSpecial: 0
-  currentSpecial: {fileID: 11400000, guid: ccecad2b255308940b67727019ab2a11, type: 2}
+  currentSpecial: {fileID: 11400000, guid: 9a41a7f397c645447916747650d6a034, type: 2}
   specialIconImage: {fileID: 0}
   isPlayer: 0
   maxSpeed: 22
@@ -2774,6 +2774,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 4b7364594f681314c9e7726b26ae3ab0, type: 3}
   m_PrefabInstance: {fileID: 1211394038}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &495826210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495826199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce7bf3c21cadf3b40bdf3c1311e841c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KartTargetingSystem
+  lockRange: 35
+  lockHalfAngle: 75
+  enableForAI: 1
 --- !u!1 &497501924
 GameObject:
   m_ObjectHideFlags: 0
@@ -7538,6 +7553,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2d8083565c69f8a4e90ddc47c8162592, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1752968467}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2d8083565c69f8a4e90ddc47c8162592, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1752968469}
   m_SourcePrefab: {fileID: 100100000, guid: 2d8083565c69f8a4e90ddc47c8162592, type: 3}
 --- !u!1 &1110529910
 GameObject:
@@ -8412,6 +8430,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4b7364594f681314c9e7726b26ae3ab0, type: 3}
       insertIndex: -1
       addedObject: {fileID: 495826207}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 4b7364594f681314c9e7726b26ae3ab0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 495826210}
   m_SourcePrefab: {fileID: 100100000, guid: 4b7364594f681314c9e7726b26ae3ab0, type: 3}
 --- !u!1 &1248569086
 GameObject:
@@ -8704,7 +8725,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KartController
   hasSpecial: 0
-  currentSpecial: {fileID: 11400000, guid: ccecad2b255308940b67727019ab2a11, type: 2}
+  currentSpecial: {fileID: 11400000, guid: 9a41a7f397c645447916747650d6a034, type: 2}
   specialIconImage: {fileID: 0}
   isPlayer: 0
   maxSpeed: 22
@@ -8821,6 +8842,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: a58c171ea00f5cc4c87225877c9355b8, type: 3}
   m_PrefabInstance: {fileID: 1748427015}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1307445177
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1307445169}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce7bf3c21cadf3b40bdf3c1311e841c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KartTargetingSystem
+  lockRange: 35
+  lockHalfAngle: 75
+  enableForAI: 1
 --- !u!1 &1313918563
 GameObject:
   m_ObjectHideFlags: 0
@@ -11734,7 +11770,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KartController
   hasSpecial: 1
-  currentSpecial: {fileID: 11400000, guid: ccecad2b255308940b67727019ab2a11, type: 2}
+  currentSpecial: {fileID: 11400000, guid: 9a41a7f397c645447916747650d6a034, type: 2}
   specialIconImage: {fileID: 0}
   isPlayer: 1
   maxSpeed: 22
@@ -11893,6 +11929,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 9a879fff6b0c25c4eaa559918f3d8ee0, type: 3}
   m_PrefabInstance: {fileID: 1735076732}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1722793279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1722793268}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce7bf3c21cadf3b40bdf3c1311e841c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KartTargetingSystem
+  lockRange: 35
+  lockHalfAngle: 75
+  enableForAI: 1
 --- !u!1001 &1735076732
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12174,6 +12225,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9a879fff6b0c25c4eaa559918f3d8ee0, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1722793277}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 9a879fff6b0c25c4eaa559918f3d8ee0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1722793279}
   m_SourcePrefab: {fileID: 100100000, guid: 9a879fff6b0c25c4eaa559918f3d8ee0, type: 3}
 --- !u!1 &1735361413
 GameObject:
@@ -12514,6 +12568,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a58c171ea00f5cc4c87225877c9355b8, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1307445175}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: a58c171ea00f5cc4c87225877c9355b8, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1307445177}
   m_SourcePrefab: {fileID: 100100000, guid: a58c171ea00f5cc4c87225877c9355b8, type: 3}
 --- !u!1 &1752968459 stripped
 GameObject:
@@ -12533,7 +12590,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KartController
   hasSpecial: 0
-  currentSpecial: {fileID: 11400000, guid: ccecad2b255308940b67727019ab2a11, type: 2}
+  currentSpecial: {fileID: 11400000, guid: 9a41a7f397c645447916747650d6a034, type: 2}
   specialIconImage: {fileID: 0}
   isPlayer: 0
   maxSpeed: 22
@@ -12671,6 +12728,21 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 2d8083565c69f8a4e90ddc47c8162592, type: 3}
   m_PrefabInstance: {fileID: 1101297374}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1752968469
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1752968459}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ce7bf3c21cadf3b40bdf3c1311e841c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KartTargetingSystem
+  lockRange: 35
+  lockHalfAngle: 75
+  enableForAI: 1
 --- !u!1 &1768671815
 GameObject:
   m_ObjectHideFlags: 0
@@ -14198,6 +14270,7 @@ RectTransform:
   - {fileID: 1089609842}
   - {fileID: 135811273}
   - {fileID: 116813898}
+  - {fileID: 2110588074}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -14364,6 +14437,81 @@ Transform:
   m_Children: []
   m_Father: {fileID: 838902580}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1985493173
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1985493174}
+  - component: {fileID: 1985493176}
+  - component: {fileID: 1985493175}
+  m_Layer: 0
+  m_Name: Reticle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &1985493174
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985493173}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1.5, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2110588074}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 96, y: 96}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1985493175
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985493173}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 0.9}
+  m_RaycastTarget: 0
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 21300000, guid: 7c92ab239a4e12c489666f84f4f8a61e, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1985493176
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1985493173}
+  m_CullTransparentMesh: 1
 --- !u!1 &2001817069
 GameObject:
   m_ObjectHideFlags: 0
@@ -14748,6 +14896,61 @@ Transform:
   m_Children: []
   m_Father: {fileID: 838902580}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2110588073
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2110588074}
+  - component: {fileID: 2110588075}
+  m_Layer: 0
+  m_Name: TargetLockHUD
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2110588074
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2110588073}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1985493174}
+  m_Father: {fileID: 1914344245}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2110588075
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2110588073}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0583a2e3bc232094ebda1d0e7b0e3a33, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetLockHUD
+  reticle: {fileID: 1985493174}
+  canvas: {fileID: 1914344244}
+  worldHeightOffset: 1.2
+  reticleSpin: 90
+  pulseAmount: 0.12
+  pulseSpeed: 6
 --- !u!1 &2117734198
 GameObject:
   m_ObjectHideFlags: 0

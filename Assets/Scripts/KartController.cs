@@ -14,6 +14,10 @@ public class KartController : MonoBehaviour
     private float stunTimer = 0f;
     public bool isStunned => stunTimer > 0f;
 
+    // Decoupled targeting/lock-on component (auto-resolved in Start).
+    private KartTargetingSystem targetingSystem;
+    public KartTargetingSystem TargetingSystem => targetingSystem;
+
     private void OnEnable()
     {
         ActiveKarts.RemoveAll(k => k == null);
@@ -253,6 +257,13 @@ public class KartController : MonoBehaviour
         rb = GetComponent<Rigidbody>();
         if (driftAudioSource != null) driftBasePitch = driftAudioSource.pitch;
         if (boostAudioSource != null) boostBasePitch = boostAudioSource.pitch;
+
+        // Resolve the decoupled targeting/lock-on system (add one if missing so the Special always works).
+        targetingSystem = GetComponent<KartTargetingSystem>();
+        if (targetingSystem == null)
+        {
+            targetingSystem = gameObject.AddComponent<KartTargetingSystem>();
+        }
         
         // Ensure Rigidbody is configured for arcade racing
         rb.useGravity = true;
@@ -618,17 +629,11 @@ public class KartController : MonoBehaviour
             else if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) 
                 inputSteer = Mathf.Max(inputSteer, 1f);
 
-            // Special System Inputs
-            if (hasSpecial)
+            // Special System Input: Q fires the Special at the locked target.
+            // The aiming direction (front / back via CTRL) is handled by KartTargetingSystem.
+            if (hasSpecial && Keyboard.current.qKey.wasPressedThisFrame)
             {
-                if (Keyboard.current.qKey.wasPressedThisFrame)
-                {
-                    UseSpecial(true);
-                }
-                else if (Keyboard.current.eKey.wasPressedThisFrame)
-                {
-                    UseSpecial(false);
-                }
+                UseSpecial();
             }
         }
 
@@ -2331,6 +2336,27 @@ public class KartController : MonoBehaviour
         get { return isDrifting; }
     }
 
+    /// <summary>Current horizontal speed of the kart (m/s). Used by homing projectiles for dynamic balancing.</summary>
+    public float CurrentSpeed
+    {
+        get
+        {
+            if (rb == null) return Mathf.Abs(currentSpeed);
+            Vector3 horizontal = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+            return horizontal.magnitude;
+        }
+    }
+
+    /// <summary>Base top speed without any boost.</summary>
+    public float MaxSpeed => maxSpeed;
+
+    /// <summary>
+    /// Reference top speed a kart can reach while using a Drift/Nitro boost.
+    /// Homing projectiles cap their speed below this value so a boosting kart can escape.
+    /// 1.55 mirrors the nitro speed multiplier used in ApplyMovementPhysics.
+    /// </summary>
+    public float BoostedTopSpeed => maxSpeed * 1.55f;
+
     private void OnCollisionEnter(Collision collision)
     {
         float force = collision.relativeVelocity.magnitude;
@@ -2351,31 +2377,55 @@ public class KartController : MonoBehaviour
     }
 
     // --- Special System Methods ---
-    public void UseSpecial(bool forward)
+
+    /// <summary>
+    /// Requests firing the equipped Special. The kart controller does NOT contain any
+    /// projectile/missile logic: it only forwards the locked target to the SpecialAbility.
+    /// </summary>
+    public void UseSpecial()
     {
         if (!hasSpecial) return;
 
+        KartController lockedTarget = targetingSystem != null ? targetingSystem.CurrentTarget : null;
+
+        bool requiresTarget = currentSpecial != null ? currentSpecial.RequiresTarget : true;
+        if (requiresTarget && lockedTarget == null)
+        {
+            // No valid target locked: do not fire and do not consume the item.
+            // Hook here for a future "Sem alvo" UI/sound feedback.
+            Debug.Log($"{gameObject.name}: Sem alvo travado — Especial não disparado.");
+            return;
+        }
+
         if (currentSpecial != null)
         {
-            currentSpecial.Activate(this, forward);
+            currentSpecial.Activate(this, lockedTarget);
         }
         else
         {
-            DefaultUseSpecial(forward);
+            DefaultUseSpecial(lockedTarget);
         }
 
         hasSpecial = false;
-        Debug.Log($"{gameObject.name} used Special. hasSpecial set to false.");
+        Debug.Log($"{gameObject.name} used Special on target: {(lockedTarget != null ? lockedTarget.name : "none")}.");
     }
 
-    public void DefaultUseSpecial(bool forward)
+    /// <summary>
+    /// Safety fallback used only when no SpecialAbility asset is assigned.
+    /// Spawns a simple homing cube so the system always works out of the box.
+    /// </summary>
+    public void DefaultUseSpecial(KartController target)
     {
-        Vector3 spawnDirection = forward ? transform.forward : -transform.forward;
-        Vector3 spawnPosition = transform.position + spawnDirection * 2.5f + Vector3.up * 0.5f;
+        Vector3 dir = target != null
+            ? (target.transform.position - transform.position).normalized
+            : transform.forward;
+
+        Vector3 spawnPosition = transform.position + dir * 2.2f + Vector3.up * 0.8f;
 
         GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
         cube.transform.position = spawnPosition;
-        cube.transform.localScale = Vector3.one * 0.8f;
+        cube.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+        cube.transform.localScale = new Vector3(0.5f, 0.5f, 1.2f);
 
         Collider col = cube.GetComponent<Collider>();
         if (col != null)
@@ -2383,8 +2433,8 @@ public class KartController : MonoBehaviour
             col.isTrigger = true;
         }
 
-        SpecialProjectile projectile = cube.AddComponent<SpecialProjectile>();
-        projectile.Initialize(this, spawnDirection);
+        HomingProjectile projectile = cube.AddComponent<HomingProjectile>();
+        projectile.Initialize(this, target);
     }
 
     public void HitBySpecial(float duration)
