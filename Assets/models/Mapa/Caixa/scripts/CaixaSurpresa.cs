@@ -75,6 +75,9 @@ public class CaixaSurpresa : MonoBehaviour
         KartController kart = other.GetComponentInParent<KartController>();
         if (kart != null)
         {
+            // Ativa o especial no kart
+            kart.hasSpecial = true;
+
             // Escolhe aleatoriamente adicionar 1, 2 ou 3 (total) cargas ao medidor de boost
             int randomCharges = Random.Range(1, 4); // Retorna 1, 2 ou 3
             kart.AddBoostCharges(randomCharges);

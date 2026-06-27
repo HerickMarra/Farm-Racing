@@ -7,6 +7,13 @@ public class KartController : MonoBehaviour
 {
     public static List<KartController> ActiveKarts = new List<KartController>();
 
+    [Header("Special System")]
+    public bool hasSpecial = false;
+    public SpecialAbility currentSpecial;
+    public UnityEngine.UI.Image specialIconImage;
+    private float stunTimer = 0f;
+    public bool isStunned => stunTimer > 0f;
+
     private void OnEnable()
     {
         ActiveKarts.RemoveAll(k => k == null);
@@ -383,6 +390,24 @@ public class KartController : MonoBehaviour
 
     private void Update()
     {
+        if (stunTimer > 0f)
+        {
+            stunTimer -= Time.deltaTime;
+            throttleInput = 0f;
+            steeringInput = 0f;
+            isDrifting = false;
+            smoothedThrottleInput = 0f;
+            smoothedSteeringInput = 0f;
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.deltaTime * 15f);
+            }
+            UpdateWheelVisuals();
+            UpdateParticles();
+            UpdateAudio();
+            return;
+        }
+
         if (!controlsEnabled)
         {
             throttleInput = 0f;
@@ -484,6 +509,16 @@ public class KartController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (stunTimer > 0f)
+        {
+            if (bodyTransform != null)
+            {
+                float spinAngle = (stunTimer * 720f) % 360f;
+                bodyTransform.localRotation = Quaternion.Euler(0f, spinAngle, 0f);
+            }
+            return;
+        }
+
         if (bodyTransform != null)
         {
             // Calculate a centrifugal outward lean/roll and acceleration pitch
@@ -535,6 +570,14 @@ public class KartController : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (stunTimer > 0f)
+        {
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.fixedDeltaTime * 15f);
+            }
+            return;
+        }
         CheckGroundStatus();
         UpdateWaypointTracking();
         ApplyMovementPhysics();
@@ -574,6 +617,19 @@ public class KartController : MonoBehaviour
                 inputSteer = Mathf.Min(inputSteer, -1f);
             else if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) 
                 inputSteer = Mathf.Max(inputSteer, 1f);
+
+            // Special System Inputs
+            if (hasSpecial)
+            {
+                if (Keyboard.current.qKey.wasPressedThisFrame)
+                {
+                    UseSpecial(true);
+                }
+                else if (Keyboard.current.eKey.wasPressedThisFrame)
+                {
+                    UseSpecial(false);
+                }
+            }
         }
 
         throttleInput = inputThrottle;
@@ -2292,5 +2348,54 @@ public class KartController : MonoBehaviour
 
             Destroy(sparks.gameObject, sparks.main.duration + sparks.main.startLifetime.constantMax);
         }
+    }
+
+    // --- Special System Methods ---
+    public void UseSpecial(bool forward)
+    {
+        if (!hasSpecial) return;
+
+        if (currentSpecial != null)
+        {
+            currentSpecial.Activate(this, forward);
+        }
+        else
+        {
+            DefaultUseSpecial(forward);
+        }
+
+        hasSpecial = false;
+        Debug.Log($"{gameObject.name} used Special. hasSpecial set to false.");
+    }
+
+    public void DefaultUseSpecial(bool forward)
+    {
+        Vector3 spawnDirection = forward ? transform.forward : -transform.forward;
+        Vector3 spawnPosition = transform.position + spawnDirection * 2.5f + Vector3.up * 0.5f;
+
+        GameObject cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cube.transform.position = spawnPosition;
+        cube.transform.localScale = Vector3.one * 0.8f;
+
+        Collider col = cube.GetComponent<Collider>();
+        if (col != null)
+        {
+            col.isTrigger = true;
+        }
+
+        SpecialProjectile projectile = cube.AddComponent<SpecialProjectile>();
+        projectile.Initialize(this, spawnDirection);
+    }
+
+    public void HitBySpecial(float duration)
+    {
+        stunTimer = duration;
+        isDrifting = false;
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+        Debug.Log($"{gameObject.name} hit by special! Stunned for {duration} seconds.");
     }
 }
