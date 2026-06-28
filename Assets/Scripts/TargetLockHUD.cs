@@ -83,21 +83,29 @@ public class TargetLockHUD : MonoBehaviour
 
         SetReticleVisible(true);
 
-        // Position the reticle based on Canvas RenderMode.
-        // For ScreenSpaceOverlay, setting reticle.position directly to screenPos is 100% robust and bypasses scaling bugs in builds.
-        if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+        // 1. If in ScreenSpaceCamera, guarantee the Canvas is bound to the active main camera in builds
+        if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera)
         {
-            reticle.position = screenPos;
+            if (canvas.worldCamera == null || canvas.worldCamera != mainCamera)
+            {
+                canvas.worldCamera = mainCamera;
+            }
         }
-        else if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera && canvasRect != null)
+
+        // 2. Position the reticle robustly by converting screen pixels to Canvas local space
+        if (canvas != null && canvasRect != null)
         {
             Vector2 localPoint;
+            Camera cameraContext = (canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera;
+
             RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, canvas.worldCamera, out localPoint);
+                canvasRect, screenPos, cameraContext, out localPoint);
+
             reticle.anchoredPosition = localPoint;
         }
         else
         {
+            // Fallback if Canvas references are missing
             reticle.position = screenPos;
         }
 
