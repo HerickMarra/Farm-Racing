@@ -46,6 +46,20 @@ public class CameraController : MonoBehaviour
     private Vector3 smoothForward;
     private Camera cam;
     private Rigidbody targetRb;
+
+    /// <summary>
+    /// The actual gameplay Camera that renders the race and follows the player.
+    /// Other systems (e.g. world-tracking HUD) should use this instead of Camera.main,
+    /// which is ambiguous in multi-scene builds where more than one camera is tagged "MainCamera".
+    /// </summary>
+    public Camera Cam
+    {
+        get
+        {
+            if (cam == null) cam = GetComponent<Camera>();
+            return cam;
+        }
+    }
     private float smoothedSpeed = 0f;
     private Vector3 smoothedVelocityDir = Vector3.forward;
     private bool wasLookingBehind = false;

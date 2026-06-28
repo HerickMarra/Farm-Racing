@@ -14947,6 +14947,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TargetLockHUD
   reticle: {fileID: 1985493174}
   canvas: {fileID: 1914344244}
+  trackingCamera: {fileID: 1823688466}
   worldHeightOffset: 1.2
   reticleSpin: 90
   pulseAmount: 0.12

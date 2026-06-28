@@ -15,6 +15,10 @@ public class TargetLockHUD : MonoBehaviour
     [SerializeField] private RectTransform reticle;
     [Tooltip("Canvas that hosts the reticle (used for the RenderMode / scaling).")]
     [SerializeField] private Canvas canvas;
+    [Tooltip("OPTIONAL: explicit gameplay camera used for the world->screen projection. " +
+             "Leave empty to auto-resolve the CameraController's camera. " +
+             "NEVER relies on Camera.main, which is ambiguous in multi-scene builds.")]
+    [SerializeField] private Camera trackingCamera;
 
     [Header("Tracking")]
     [Tooltip("World-space vertical offset above the target kart pivot.")]
@@ -25,36 +29,35 @@ public class TargetLockHUD : MonoBehaviour
     [SerializeField] private float pulseAmount = 0.12f;
     [SerializeField] private float pulseSpeed = 6f;
 
-    private Camera mainCamera;
+    private Camera gameplayCamera;
+    private CameraController gameplayCameraController;
     private KartController playerKart;
-    private RectTransform canvasRect;
     private float spinAngle;
     private Vector3 baseScale = Vector3.one;
 
     private void Start()
     {
-        if (canvas != null)
-        {
-            canvasRect = canvas.GetComponent<RectTransform>();
-        }
         if (reticle != null)
         {
             baseScale = reticle.localScale;
-            
-            // Force centered anchors and pivot to guarantee perfect mathematical scaling at any resolution
+
+            // Force centered anchors and pivot so anchoredPosition maps cleanly to screen-centered coords.
             reticle.anchorMin = new Vector2(0.5f, 0.5f);
             reticle.anchorMax = new Vector2(0.5f, 0.5f);
             reticle.pivot = new Vector2(0.5f, 0.5f);
         }
+        ResolveCamera();
         FindPlayerKart();
         SetReticleVisible(false);
     }
 
-    private void Update()
+    // LateUpdate: the CameraController moves the camera in its own LateUpdate, so we must
+    // project AFTER the camera has reached its final pose this frame. Doing this in Update
+    // would use the previous frame's camera pose, causing lag/jitter (worse at build framerates).
+    private void LateUpdate()
     {
-        // Always query Camera.main dynamically to avoid stale cached cameras (e.g. from load/loading scenes)
-        mainCamera = Camera.main;
-        if (mainCamera == null)
+        Camera cam = ResolveCamera();
+        if (cam == null)
         {
             SetReticleVisible(false);
             return;
@@ -77,7 +80,7 @@ public class TargetLockHUD : MonoBehaviour
         }
 
         Vector3 worldPos = target.transform.position + Vector3.up * worldHeightOffset;
-        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPos);
+        Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
         // Behind the camera -> hide.
         if (screenPos.z <= 0f)
@@ -88,37 +91,25 @@ public class TargetLockHUD : MonoBehaviour
 
         SetReticleVisible(true);
 
-        // 1. If in ScreenSpaceCamera, guarantee the Canvas is bound to the active main camera in builds
-        if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera)
+        // Position the reticle robustly: convert screen pixels to the reticle parent's local space.
+        // This automatically accounts for CanvasScaler scaleFactor, resolution, aspect and DPI,
+        // so the result is identical in the Editor and in any build resolution.
+        RectTransform parentRect = reticle.parent as RectTransform;
+        if (canvas != null && parentRect != null)
         {
-            if (canvas.worldCamera == null || canvas.worldCamera != mainCamera)
-            {
-                canvas.worldCamera = mainCamera;
-            }
+            // For Screen Space - Overlay the camera context MUST be null.
+            // For Screen Space - Camera it must be the canvas worldCamera.
+            Camera cameraContext = (canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera;
+
+            Vector2 localPoint;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                parentRect, screenPos, cameraContext, out localPoint);
+            reticle.anchoredPosition = localPoint;
         }
-
-        // 2. Position the reticle robustly by converting screen pixels to its direct parent's local space
-        if (canvas != null && reticle != null)
+        else
         {
-            RectTransform parentRect = reticle.parent as RectTransform;
-            if (parentRect != null)
-            {
-                Vector2 localPoint;
-                Camera cameraContext = (canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera;
-
-                RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                    parentRect, screenPos, cameraContext, out localPoint);
-
-                reticle.anchoredPosition = localPoint;
-            }
-            else
-            {
-                reticle.position = screenPos;
-            }
-        }
-        else if (reticle != null)
-        {
-            reticle.position = screenPos;
+            // Fallback (no canvas / no rect parent): only valid for overlay.
+            reticle.position = new Vector3(screenPos.x, screenPos.y, 0f);
         }
 
         // Visual flair: spin + pulse to feel like an active missile lock.
@@ -132,6 +123,42 @@ public class TargetLockHUD : MonoBehaviour
             float pulse = 1f + Mathf.Sin(Time.time * pulseSpeed) * pulseAmount;
             reticle.localScale = baseScale * pulse;
         }
+    }
+
+    /// <summary>
+    /// Resolves the camera to use for projection, WITHOUT ever relying on Camera.main.
+    /// Priority: explicit serialized camera -> the CameraController's gameplay camera.
+    /// Camera.main is avoided because multi-scene builds can have several cameras tagged
+    /// "MainCamera" (e.g. the loading/intro scene's camera), and Camera.main returns an
+    /// arbitrary one whose pick order differs between Editor and Build.
+    /// </summary>
+    private Camera ResolveCamera()
+    {
+        // 1. Explicit assignment always wins.
+        if (trackingCamera != null)
+        {
+            gameplayCamera = trackingCamera;
+            return gameplayCamera;
+        }
+
+        // 2. Use the gameplay CameraController's camera.
+        if (gameplayCameraController == null)
+        {
+            gameplayCameraController = Object.FindFirstObjectByType<CameraController>();
+        }
+        if (gameplayCameraController != null && gameplayCameraController.Cam != null)
+        {
+            gameplayCamera = gameplayCameraController.Cam;
+            return gameplayCamera;
+        }
+
+        // 3. Last-resort fallback (kept only so the reticle is not permanently disabled
+        //    if the CameraController is missing). Logged once for visibility.
+        if (gameplayCamera == null)
+        {
+            gameplayCamera = Camera.main;
+        }
+        return gameplayCamera;
     }
 
     private void SetReticleVisible(bool visible)
