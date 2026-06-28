@@ -409,10 +409,6 @@ public class KartController : MonoBehaviour
             isDrifting = false;
             smoothedThrottleInput = 0f;
             smoothedSteeringInput = 0f;
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.deltaTime * 15f);
-            }
             UpdateWheelVisuals();
             UpdateParticles();
             UpdateAudio();
@@ -426,10 +422,6 @@ public class KartController : MonoBehaviour
             isDrifting = false;
             smoothedThrottleInput = 0f;
             smoothedSteeringInput = 0f;
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.deltaTime * 10f);
-            }
             UpdateWheelVisuals();
             return;
         }

@@ -127,10 +127,6 @@ public class CameraController : MonoBehaviour
         int W = waypointCircuit.waypoints.Length;
         if (W == 0) return;
 
-        Transform currentWp = waypointCircuit.waypoints[introWaypointIndex];
-        Transform nextWp = waypointCircuit.waypoints[(introWaypointIndex + 1) % W];
-        if (currentWp == null || nextWp == null) return;
-
         // Progress camera along the track waypoints (significantly faster, drone style speed)
         introProgress += Time.deltaTime * 4.2f;
         if (introProgress >= 1f)
@@ -152,6 +148,12 @@ public class CameraController : MonoBehaviour
 
             introWaypointIndex = introWaypointIndex % W;
         }
+
+        // Fetch waypoints AFTER resolving the current introWaypointIndex so the lerp parameters 
+        // are synchronized, preventing teleportation jumps back and forth at boundaries.
+        Transform currentWp = waypointCircuit.waypoints[introWaypointIndex];
+        Transform nextWp = waypointCircuit.waypoints[(introWaypointIndex + 1) % W];
+        if (currentWp == null || nextWp == null) return;
 
         Vector3 posOnPath = Vector3.Lerp(currentWp.position, nextWp.position, introProgress);
         Vector3 forwardDir = (nextWp.position - currentWp.position).normalized;
