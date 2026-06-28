@@ -40,6 +40,11 @@ public class TargetLockHUD : MonoBehaviour
         if (reticle != null)
         {
             baseScale = reticle.localScale;
+            
+            // Force centered anchors and pivot to guarantee perfect mathematical scaling at any resolution
+            reticle.anchorMin = new Vector2(0.5f, 0.5f);
+            reticle.anchorMax = new Vector2(0.5f, 0.5f);
+            reticle.pivot = new Vector2(0.5f, 0.5f);
         }
         FindPlayerKart();
         SetReticleVisible(false);
@@ -92,20 +97,27 @@ public class TargetLockHUD : MonoBehaviour
             }
         }
 
-        // 2. Position the reticle robustly by converting screen pixels to Canvas local space
-        if (canvas != null && canvasRect != null)
+        // 2. Position the reticle robustly by converting screen pixels to its direct parent's local space
+        if (canvas != null && reticle != null)
         {
-            Vector2 localPoint;
-            Camera cameraContext = (canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera;
+            RectTransform parentRect = reticle.parent as RectTransform;
+            if (parentRect != null)
+            {
+                Vector2 localPoint;
+                Camera cameraContext = (canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : canvas.worldCamera;
 
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                canvasRect, screenPos, cameraContext, out localPoint);
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    parentRect, screenPos, cameraContext, out localPoint);
 
-            reticle.anchoredPosition = localPoint;
+                reticle.anchoredPosition = localPoint;
+            }
+            else
+            {
+                reticle.position = screenPos;
+            }
         }
-        else
+        else if (reticle != null)
         {
-            // Fallback if Canvas references are missing
             reticle.position = screenPos;
         }
 
