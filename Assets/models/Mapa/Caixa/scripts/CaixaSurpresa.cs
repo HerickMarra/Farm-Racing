@@ -25,6 +25,10 @@ public class CaixaSurpresa : MonoBehaviour
     [Tooltip("Lista de GameObjects filhos (modelos, luzes, partículas) que serão desativados durante o tempo de recarga. Se deixado vazio, o script desativará todos os objetos filhos automaticamente.")]
     [SerializeField] private GameObject[] visualObjects;
 
+    [Header("Special Abilities Pool")]
+    [Tooltip("Pool of special abilities that can be dropped by this box. If empty, the kart's pre-configured item is used.")]
+    [SerializeField] private SpecialAbility[] specialAbilitiesPool;
+
     private Vector3 startPosition;
     private float timeOffset;
     private bool isReady = true;
@@ -77,6 +81,12 @@ public class CaixaSurpresa : MonoBehaviour
         {
             // Ativa o especial no kart
             kart.hasSpecial = true;
+
+            // Se houver habilidades no pool, escolhe uma aleatoriamente e atribui
+            if (specialAbilitiesPool != null && specialAbilitiesPool.Length > 0)
+            {
+                kart.currentSpecial = specialAbilitiesPool[Random.Range(0, specialAbilitiesPool.Length)];
+            }
 
             // Escolhe aleatoriamente adicionar 1, 2 ou 3 (total) cargas ao medidor de boost
             int randomCharges = Random.Range(1, 4); // Retorna 1, 2 ou 3

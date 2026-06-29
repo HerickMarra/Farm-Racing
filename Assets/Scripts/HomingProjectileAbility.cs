@@ -68,4 +68,53 @@ public class HomingProjectileAbility : SpecialAbility
 
         projectile.Initialize(user, target);
     }
+
+    public override bool ShouldAIUse(KartController aiKart, KartController target)
+    {
+        if (target == null) return false;
+
+        // Calculate distance
+        float distance = Vector3.Distance(aiKart.transform.position, target.transform.position);
+        
+        // Homing settings check (limit range to avoid shooting too close or too far)
+        float maxRange = aiKart.TargetingSystem != null ? aiKart.TargetingSystem.lockRange : 35f;
+        if (distance < 5.0f || distance > maxRange) return false;
+
+        // Race position check: target should be ahead in the race (higher rank / lower position value)
+        if (target.currentPosition > aiKart.currentPosition) return false;
+
+        // Linecast check: Make sure there are no solid walls blocking the flight path
+        Vector3 startOffset = aiKart.transform.position + Vector3.up * spawnHeight;
+        Vector3 endOffset = target.transform.position + Vector3.up * 0.6f;
+        if (Physics.Linecast(startOffset, endOffset, out RaycastHit hit, ~0, QueryTriggerInteraction.Ignore))
+        {
+            // If we hit static terrain or walls, don't fire
+            if (hit.collider.gameObject != target.gameObject && !hit.collider.transform.IsChildOf(target.transform))
+            {
+                return false;
+            }
+        }
+
+        // Distance to finish line adjustment
+        float finishProgress = aiKart.GetRaceFinishProgress();
+
+        // Strategic saving: If we are early in the race (first 10%) and the target is not very close,
+        // we have a high tendency to save the special for later laps.
+        if (finishProgress < 0.10f && distance > 15.0f)
+        {
+            // 75% chance to save it (only evaluate probability check 25% of the time)
+            if (Random.value < 0.75f) return false;
+        }
+
+        // Periodic probability check to simulate human reaction delay
+        float firingProbability = 0.03f; // Default 3% chance per frame (approx. 0.5s - 1.5s delay)
+
+        // Near finish line: Be much more aggressive to secure victory
+        if (finishProgress > 0.85f)
+        {
+            firingProbability = 0.10f; // 10% chance per frame (near-instant trigger)
+        }
+
+        return Random.value < firingProbability;
+    }
 }

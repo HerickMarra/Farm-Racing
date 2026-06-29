@@ -161,6 +161,27 @@ public class KartController : MonoBehaviour
     }
     [HideInInspector] public int currentPosition = 1;
 
+    /// <summary>
+    /// Returns the progress of the kart relative to the race finish line (0 = start, 1 = finish).
+    /// </summary>
+    public float GetRaceFinishProgress()
+    {
+        RaceManager rm = Object.FindAnyObjectByType<RaceManager>();
+        int maxLaps = rm != null ? rm.totalLaps : 3;
+
+        // Calculate lap progress
+        float lapProgress = (float)(currentLap - 1) / maxLaps;
+
+        // Calculate waypoint progress within the current lap
+        float waypointProgress = 0f;
+        if (waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
+        {
+            waypointProgress = (float)currentWaypointIndex / (waypointCircuit.waypoints.Length * maxLaps);
+        }
+
+        return Mathf.Clamp01(lapProgress + waypointProgress);
+    }
+
     // Internal physics variables
     private Rigidbody rb;
     private float throttleInput;
@@ -681,6 +702,9 @@ public class KartController : MonoBehaviour
             isDrifting = false;
             return;
         }
+
+        // Handle AI special item usage
+        UpdateAISpecial();
 
         // Countdown AI boost cooldown
         if (aiBoostCooldownTimer > 0f)
@@ -2427,6 +2451,22 @@ public class KartController : MonoBehaviour
 
         HomingProjectile projectile = cube.AddComponent<HomingProjectile>();
         projectile.Initialize(this, target);
+    }
+
+    /// <summary>
+    /// Evaluates and handles the activation of the bot's special ability.
+    /// </summary>
+    private void UpdateAISpecial()
+    {
+        if (!hasSpecial || currentSpecial == null || isPlayer) return;
+
+        // Resolve targeting system target
+        KartController lockedTarget = targetingSystem != null ? targetingSystem.CurrentTarget : null;
+
+        if (currentSpecial.ShouldAIUse(this, lockedTarget))
+        {
+            UseSpecial();
+        }
     }
 
     public void HitBySpecial(float duration)

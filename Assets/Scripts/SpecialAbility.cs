@@ -19,4 +19,13 @@ public abstract class SpecialAbility : ScriptableObject
     /// targeting system (may be null for specials that don't require a target).
     /// </summary>
     public abstract void Activate(KartController user, KartController target);
+
+    /// <summary>
+    /// Evaluates if the AI should fire this special at the current frame.
+    /// Override this in subclasses to implement specific tactical behaviors.
+    /// </summary>
+    public virtual bool ShouldAIUse(KartController aiKart, KartController target)
+    {
+        return false;
+    }
 }

@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b95dbf97170fdac41a4a1853d80efca5, type: 3}
+  m_Name: Fazendeiro Especial
+  m_EditorClassIdentifier: Assembly-CSharp::HomingProjectileAbility
+  abilityName: Homing Missile
+  hudIcon: {fileID: 0}
+  projectilePrefab: {fileID: 6010785767028151022, guid: 42e92492ab3fa2748bf1bce0b658ef3d, type: 3}
+  spawnOffset: 2.2
+  spawnHeight: 0.8
+  overrideSpeed: -1
+  overrideTurnRate: -1

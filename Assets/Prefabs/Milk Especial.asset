@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b95dbf97170fdac41a4a1853d80efca5, type: 3}
-  m_Name: HomingMissileAbility
+  m_Name: Milk Especial
   m_EditorClassIdentifier: Assembly-CSharp::HomingProjectileAbility
   abilityName: Homing Missile
   hudIcon: {fileID: 0}
-  projectilePrefab: {fileID: 8571320063449444318, guid: 13cb031b81cecae4598f29db6fa7bbda, type: 3}
+  projectilePrefab: {fileID: 1524700809801630158, guid: f1e17b0e70255784f85dddb30b38db51, type: 3}
   spawnOffset: 2.2
   spawnHeight: 0.8
   overrideSpeed: -1

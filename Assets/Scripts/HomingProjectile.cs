@@ -10,11 +10,11 @@ public class HomingProjectile : MonoBehaviour
 {
     [Header("Movement")]
     [Tooltip("Current flight speed (m/s). When 'Use Dynamic Speed' is enabled this is recomputed at launch from the target's speed.")]
-    public float speed = 75f;
+    public float speed = 120f;
     [Tooltip("How fast the projectile can correct its heading (degrees per second). Lower = wider, lazier curves.")]
-    public float turnRate = 320f;
+    public float turnRate = 420f;
     [Tooltip("Maximum time (in seconds) the projectile may exist. If it does not hit a target within this time it self-destructs.")]
-    public float lifetime = 8f;
+    public float lifetime = 4f;
 
     [Header("Dynamic Speed (Balancing)")]
     [Tooltip("If ON, the missile speed is based on the locked target's current speed at launch instead of the fixed 'speed' value above.")]
@@ -22,7 +22,7 @@ public class HomingProjectile : MonoBehaviour
     [Tooltip("Extra speed added on top of the target's current speed so the missile can catch a kart driving at normal speed.")]
     public float catchUpBonus = 35f;
     [Tooltip("Lowest speed the missile can ever fly at (prevents it from crawling when the target is slow or stopped).")]
-    public float minSpeed = 45f;
+    public float minSpeed = 75f;
     [Tooltip("The missile speed is capped this many m/s BELOW the target's Drift/Boost top speed, so a kart that boosts at the right moment can escape.")]
     public float escapeMargin = 3f;
 
@@ -44,7 +44,7 @@ public class HomingProjectile : MonoBehaviour
     [Tooltip("Stun duration applied to the kart that gets hit.")]
     public float stunDuration = 1.5f;
     [Tooltip("Manual proximity hit radius (backup to physics triggers).")]
-    public float hitRadius = 1.6f;
+    public float hitRadius = 2.2f;
 
     [Header("Effects (optional placeholders)")]
     [Tooltip("Smoke / particle trail emitted while flying.")]
@@ -127,10 +127,10 @@ public class HomingProjectile : MonoBehaviour
     /// </summary>
     protected virtual float ComputeDynamicSpeed(KartController targetKart)
     {
-        // Dynamic speed is exactly twice the speed of the target kart.
-        float desired = targetKart.CurrentSpeed * 2.0f;
-        // Clamp between our high minimum speed floor (45 m/s) and a high maximum speed limit (100 m/s)
-        return Mathf.Clamp(desired, minSpeed, 100f);
+        // Dynamic speed is exactly three times the speed of the target kart.
+        float desired = targetKart.CurrentSpeed * 3.0f;
+        // Clamp between our high minimum speed floor (75 m/s) and a high maximum speed limit (140 m/s)
+        return Mathf.Clamp(desired, minSpeed, 140f);
     }
 
     protected virtual Vector3 GetTargetPoint()

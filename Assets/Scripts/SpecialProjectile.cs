@@ -3,8 +3,8 @@ using UnityEngine;
 public class SpecialProjectile : MonoBehaviour
 {
     [Header("Movement")]
-    public float speed = 30f;
-    public float lifetime = 5f;
+    public float speed = 60f;
+    public float lifetime = 2.5f;
 
     [Header("Stun Effect")]
     public float stunDuration = 1.5f;
