@@ -6,6 +6,7 @@ TagManager:
   tags:
   - speed
   - boost
+  - NPC
   layers:
   - Default
   - TransparentFX

@@ -275,6 +275,12 @@ public class KartController : MonoBehaviour
 
     private void Start()
     {
+        // Automatically set the tag to "Player" if isPlayer is active
+        if (isPlayer)
+        {
+            gameObject.tag = "Player";
+        }
+
         rb = GetComponent<Rigidbody>();
         if (driftAudioSource != null) driftBasePitch = driftAudioSource.pitch;
         if (boostAudioSource != null) boostBasePitch = boostAudioSource.pitch;
