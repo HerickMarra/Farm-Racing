@@ -13,11 +13,9 @@ public class LoadInicial : MonoBehaviour
     public bool allowSkip = true;
 
     [Header("Scene Loading Config")]
-    [Tooltip("Name of the 3D Map scene (e.g. Fazenda Veloz).")]
-    public string sceneMapName = "Fazenda Veloz";
     [Tooltip("Name of the HUD/UI Menu scene (e.g. Menu Inicial).")]
     public string sceneMenuName = "Menu Inicial";
-    [Tooltip("Which scene should be set as active after both are loaded.")]
+    [Tooltip("Which scene should be set as active after loading.")]
     public string activeSceneName = "Menu Inicial";
 
     [Header("Loading Performance Settings")]
@@ -65,13 +63,6 @@ public class LoadInicial : MonoBehaviour
         Application.backgroundLoadingPriority = backgroundPriority;
 
         // 1. Begin loading both scenes additively in the background immediately
-        Debug.Log("Starting background loading of '" + sceneMapName + "' with Low priority...");
-        AsyncOperation loadMap = SceneManager.LoadSceneAsync(sceneMapName, LoadSceneMode.Additive);
-        if (loadMap != null)
-        {
-            loadMap.allowSceneActivation = false;
-        }
-
         Debug.Log("Starting background loading of '" + sceneMenuName + "' with Low priority...");
         AsyncOperation loadMenu = SceneManager.LoadSceneAsync(sceneMenuName, LoadSceneMode.Additive);
         if (loadMenu != null)
@@ -107,9 +98,9 @@ public class LoadInicial : MonoBehaviour
         // 4. Activate both scenes now that the video has ended or been skipped
         Debug.Log("Video finished. Activating scenes...");
         if (loadMenu != null) loadMenu.allowSceneActivation = true;
-        if (loadMap != null) loadMap.allowSceneActivation = true;
 
         // 5. Wait for Menu UI scene to be fully loaded and active
+        // Wait for Menu UI scene to be fully loaded and active
         if (loadMenu != null)
         {
             while (!loadMenu.isDone)
@@ -137,13 +128,7 @@ public class LoadInicial : MonoBehaviour
         yield return null;
 
         // 7. Wait for 3D Map scene to finish loading/activating (if not already done)
-        if (loadMap != null)
-        {
-            while (!loadMap.isDone)
-            {
-                yield return null;
-            }
-        }
+        // No additional map scene to wait for
 
         // Restore original priority
         Application.backgroundLoadingPriority = originalPriority;

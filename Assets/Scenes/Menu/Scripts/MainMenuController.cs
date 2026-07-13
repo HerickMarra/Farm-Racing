@@ -86,24 +86,16 @@ public class MainMenuController : MonoBehaviour
         if (isStarting) return;
         isStarting = true;
 
-        // 1. Deactivate the menu as requested
-        if (menuToDeactivate != null)
+        if (scenesToLoad != null && scenesToLoad.Length > 0)
         {
-            menuToDeactivate.SetActive(false);
+            Debug.Log("MainMenuController: Initiating game start via SceneLoader...");
+            SceneLoader.LoadScenes(scenesToLoad, activeSceneName);
         }
         else
         {
-            gameObject.SetActive(false);
+            Debug.LogError("MainMenuController: No scenes configured to load!");
+            isStarting = false;
         }
-
-        // Show loading panel if assigned
-        if (loadingPanel != null)
-        {
-            loadingPanel.SetActive(true);
-        }
-
-        // 2. Load configured scenes additively in the background
-        StartCoroutine(LoadScenesRoutine());
     }
 
     public void QuitGame()
