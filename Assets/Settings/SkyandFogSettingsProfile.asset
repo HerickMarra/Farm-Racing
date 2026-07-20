@@ -161,10 +161,10 @@ MonoBehaviour:
     m_Value: {x: 1, y: 1, z: 1, w: 0}
   gamma:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 1, z: 1, w: -0.10833727}
+    m_Value: {x: 1, y: 0.96, z: 0.976, w: -0.10833727}
   gain:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 1, z: 1, w: -0.037682515}
+    m_Value: {x: 1, y: 0.92, z: 0.948, w: -0.037682515}
 --- !u!114 &-4613290845008528644
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -426,6 +426,25 @@ MonoBehaviour:
   m_SampleCount:
     m_OverrideState: 1
     m_Value: 8
+--- !u!114 &-717214279332312049
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b51a78e223a2e504bb88a059b55229ea, type: 3}
+  m_Name: WhiteBalance
+  m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.WhiteBalance
+  active: 1
+  temperature:
+    m_OverrideState: 1
+    m_Value: 2.4
+  tint:
+    m_OverrideState: 1
+    m_Value: 19.3
 --- !u!114 &-401025085724046536
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -476,6 +495,7 @@ MonoBehaviour:
   - {fileID: -1727656704635113864}
   - {fileID: -4613290845008528644}
   - {fileID: -5707628485312157307}
+  - {fileID: -717214279332312049}
 --- !u!114 &472590237261511071
 MonoBehaviour:
   m_ObjectHideFlags: 3

@@ -42,6 +42,8 @@ public class KartController : MonoBehaviour
     [Header("Control Settings")]
     [Tooltip("If true, the player controls this kart. If false, the AI controls it.")]
     public bool isPlayer = false;
+    [Tooltip("ID do carro para corresponder ao ID selecionado nos Cards da UI.")]
+    public int carID = 0;
 
     [Header("Movement Stats")]
     public float maxSpeed = 22f;
@@ -275,6 +277,10 @@ public class KartController : MonoBehaviour
 
     private void Start()
     {
+        // Obtém o ID salvo no PlayerPrefs (se não existir, usa 1 como valor padrão)
+        int savedID = PlayerPrefs.GetInt("SelectedCarID", 1);
+        isPlayer = (savedID == carID);
+
         // Automatically set the tag to "Player" if isPlayer is active
         if (isPlayer)
         {

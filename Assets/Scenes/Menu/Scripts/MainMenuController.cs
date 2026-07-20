@@ -17,6 +17,7 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private GameObject mainMenuArea;
     [SerializeField] private GameObject meusCarrosArea;
     [SerializeField] private GameObject settingsArea;
+    [SerializeField] private GameObject selectMapArea;
 
     [Header("Menu Buttons")]
     [SerializeField] private Button jogarButton;
@@ -79,22 +80,31 @@ public class MainMenuController : MonoBehaviour
         if (mainMenuArea != null) mainMenuArea.SetActive(true);
         if (meusCarrosArea != null) meusCarrosArea.SetActive(false);
         if (settingsArea != null) settingsArea.SetActive(false);
+        if (selectMapArea != null) selectMapArea.SetActive(false);
     }
 
     public void PlayGame()
     {
-        if (isStarting) return;
-        isStarting = true;
-
-        if (scenesToLoad != null && scenesToLoad.Length > 0)
+        if (selectMapArea != null)
         {
-            Debug.Log("MainMenuController: Initiating game start via SceneLoader...");
-            SceneLoader.LoadScenes(scenesToLoad, activeSceneName);
+            if (mainMenuArea != null) mainMenuArea.SetActive(false);
+            selectMapArea.SetActive(true);
         }
         else
         {
-            Debug.LogError("MainMenuController: No scenes configured to load!");
-            isStarting = false;
+            if (isStarting) return;
+            isStarting = true;
+
+            if (scenesToLoad != null && scenesToLoad.Length > 0)
+            {
+                Debug.Log("MainMenuController: Initiating game start via SceneLoader...");
+                SceneLoader.LoadScenes(scenesToLoad, activeSceneName);
+            }
+            else
+            {
+                Debug.LogError("MainMenuController: No scenes configured to load!");
+                isStarting = false;
+            }
         }
     }
 

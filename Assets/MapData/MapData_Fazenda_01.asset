@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca03f72bf2ab8af4c90c6b5cf8477e0e, type: 3}
+  m_Name: MapData_Fazenda_01
+  m_EditorClassIdentifier: Assembly-CSharp::MapData
+  mapName: Circuito Veloz
+  thumbnail: {fileID: 21300000, guid: aefccd8ee2e7d4a45a64a124edbb6380, type: 3}
+  scenesToLoad:
+  - Circuito Veloz
+  - Fase01
+  activeSceneName: Fazenda Veloz
+  isUnlocked: 1
+  starsCount: 2

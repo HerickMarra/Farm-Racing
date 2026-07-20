@@ -21,12 +21,15 @@ public class PauseMenuController : MonoBehaviour
     [Header("Scene Loading")]
     [SerializeField] private string menuSceneName = "Menu Inicial";
 
-    private RaceManager raceManager;
+    public  RaceManager raceManager;
 
     private void Awake()
     {
-        // Find RaceManager in the scene
-        raceManager = Object.FindAnyObjectByType<RaceManager>();
+        if (raceManager == null){
+             // Find RaceManager in the scene
+            raceManager = Object.FindAnyObjectByType<RaceManager>();
+        }
+       
     }
 
     private void Start()
