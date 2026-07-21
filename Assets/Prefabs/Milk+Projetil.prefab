@@ -24357,7 +24357,7 @@ MonoBehaviour:
   stunDuration: 1.5
   hitRadius: 1.6
   smokeTrail: {fileID: 4221710529903386425}
-  explosionPrefab: {fileID: 0}
+  explosionPrefab: {fileID: 265766274217486953, guid: d3015b7eea383f64d8b81f965cc466e7, type: 3}
   rocketAudio: {fileID: 0}
 --- !u!82 &3340188268760627066
 AudioSource:

@@ -81,10 +81,67 @@ public class RaceManager : MonoBehaviour
 
     private void Start()
     {
-        // Karts start frozen, waiting in Intro state
+        // Re-evaluate who the actual player is after all Awake calls have run and set isPlayer correctly
+        playerKart = null;
         foreach (var kart in karts)
         {
+            if (kart.isPlayer)
+            {
+                playerKart = kart;
+            }
+            // Karts start frozen, waiting in Intro state
             kart.controlsEnabled = false;
+        }
+
+        if (playerKart == null && karts.Count > 0)
+        {
+            playerKart = karts[0]; // Fallback if no player marked
+        }
+
+        // Swap position and rotation if the selected player kart is not the default kart
+        if (playerKart != null)
+        {
+            KartController defaultKart = karts.Find(k => k.isDefaultPlayerKart);
+            if (defaultKart != null && defaultKart != playerKart)
+            {
+                // Swap transform position and rotation
+                Vector3 tempPos = playerKart.transform.position;
+                Quaternion tempRot = playerKart.transform.rotation;
+
+                playerKart.transform.position = defaultKart.transform.position;
+                playerKart.transform.rotation = defaultKart.transform.rotation;
+
+                defaultKart.transform.position = tempPos;
+                defaultKart.transform.rotation = tempRot;
+
+                // Sync with Rigidbody components to prevent Unity physics from reverting the teleport
+                Rigidbody playerRb = playerKart.GetComponent<Rigidbody>();
+                if (playerRb != null)
+                {
+                    playerRb.position = playerKart.transform.position;
+                    playerRb.rotation = playerKart.transform.rotation;
+                    playerRb.linearVelocity = Vector3.zero;
+                    playerRb.angularVelocity = Vector3.zero;
+                }
+
+                Rigidbody defaultRb = defaultKart.GetComponent<Rigidbody>();
+                if (defaultRb != null)
+                {
+                    defaultRb.position = defaultKart.transform.position;
+                    defaultRb.rotation = defaultKart.transform.rotation;
+                    defaultRb.linearVelocity = Vector3.zero;
+                    defaultRb.angularVelocity = Vector3.zero;
+                }
+
+                // Force Unity's physics engine to register the new transform changes instantly
+                Physics.SyncTransforms();
+
+                // Re-evaluate closest waypoints since physical positions swapped
+                playerKart.RecalculateClosestWaypoint();
+                defaultKart.RecalculateClosestWaypoint();
+
+                Debug.Log($"Posições trocadas: Player ({playerKart.name}) iniciando no lugar do Default ({defaultKart.name})");
+            }
         }
     }
 

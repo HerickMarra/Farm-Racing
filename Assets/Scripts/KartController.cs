@@ -44,6 +44,8 @@ public class KartController : MonoBehaviour
     public bool isPlayer = false;
     [Tooltip("ID do carro para corresponder ao ID selecionado nos Cards da UI.")]
     public int carID = 0;
+    [Tooltip("Define se este é o carrinho padrão do player (que inicia em último lugar/grid correto do player).")]
+    public bool isDefaultPlayerKart = false;
 
     [Header("Movement Stats")]
     public float maxSpeed = 22f;
@@ -273,10 +275,7 @@ public class KartController : MonoBehaviour
         // Synchronize physics to 60 Hz to eliminate temporal beat-aliasing stutters.
         // At 30 FPS, this guarantees a perfect 2:1 ratio (exactly 2 physics updates per render frame).
         Time.fixedDeltaTime = 0.0166667f;
-    }
 
-    private void Start()
-    {
         // Obtém o ID salvo no PlayerPrefs (se não existir, usa 1 como valor padrão)
         int savedID = PlayerPrefs.GetInt("SelectedCarID", 1);
         isPlayer = (savedID == carID);
@@ -286,6 +285,10 @@ public class KartController : MonoBehaviour
         {
             gameObject.tag = "Player";
         }
+    }
+
+    private void Start()
+    {
 
         rb = GetComponent<Rigidbody>();
         if (driftAudioSource != null) driftBasePitch = driftAudioSource.pitch;
@@ -338,23 +341,7 @@ public class KartController : MonoBehaviour
         }
 
         // Find closest waypoint on start to prevent backtracking
-        if (waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
-        {
-            float closestDist = float.MaxValue;
-            int closestIdx = 0;
-            for (int i = 0; i < waypointCircuit.waypoints.Length; i++)
-            {
-                if (waypointCircuit.waypoints[i] == null) continue;
-                float d = Vector3.Distance(transform.position, waypointCircuit.waypoints[i].position);
-                if (d < closestDist)
-                {
-                    closestDist = d;
-                    closestIdx = i;
-                }
-            }
-            // Target the waypoint immediately after the closest one to ensure we drive forward
-            currentWaypointIndex = (closestIdx + 1) % waypointCircuit.waypoints.Length;
-        }
+        RecalculateClosestWaypoint();
 
         // Always enable the Player action map in project-wide actions
         if (InputSystem.actions != null)
@@ -424,6 +411,27 @@ public class KartController : MonoBehaviour
             {
                 if (ps != null) ps.Stop();
             }
+        }
+    }
+
+    public void RecalculateClosestWaypoint()
+    {
+        if (waypointCircuit != null && waypointCircuit.waypoints != null && waypointCircuit.waypoints.Length > 0)
+        {
+            float closestDist = float.MaxValue;
+            int closestIdx = 0;
+            for (int i = 0; i < waypointCircuit.waypoints.Length; i++)
+            {
+                if (waypointCircuit.waypoints[i] == null) continue;
+                float d = Vector3.Distance(transform.position, waypointCircuit.waypoints[i].position);
+                if (d < closestDist)
+                {
+                    closestDist = d;
+                    closestIdx = i;
+                }
+            }
+            // Target the waypoint immediately after the closest one to ensure we drive forward
+            currentWaypointIndex = (closestIdx + 1) % waypointCircuit.waypoints.Length;
         }
     }
 
