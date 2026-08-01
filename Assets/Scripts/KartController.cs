@@ -379,7 +379,33 @@ public class KartController : MonoBehaviour
         // Try to auto-find WaypointCircuit if not assigned
         if (waypointCircuit == null)
         {
-            waypointCircuit = Object.FindAnyObjectByType<WaypointCircuit>();
+            // For NPCs, select a random circuit tagged "NPCWayPoint"
+            if (!isPlayer)
+            {
+                WaypointCircuit[] allCircuits = Object.FindObjectsOfType<WaypointCircuit>();
+                var candidates = new System.Collections.Generic.List<WaypointCircuit>();
+                foreach (var wc in allCircuits)
+                {
+                    if (wc != null && wc.gameObject.CompareTag("NPCWayPoint"))
+                    {
+                        candidates.Add(wc);
+                    }
+                }
+                if (candidates.Count > 0)
+                {
+                    waypointCircuit = candidates[UnityEngine.Random.Range(0, candidates.Count)];
+                }
+                else
+                {
+                    // Fallback to any circuit if none tagged
+                    waypointCircuit = Object.FindAnyObjectByType<WaypointCircuit>();
+                }
+            }
+            else
+            {
+                // For player, just find any circuit
+                waypointCircuit = Object.FindAnyObjectByType<WaypointCircuit>();
+            }
         }
 
         // Find closest waypoint on start to prevent backtracking

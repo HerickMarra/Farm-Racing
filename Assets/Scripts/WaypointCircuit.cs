@@ -13,7 +13,6 @@ public class WaypointCircuit : MonoBehaviour
     {
         if (waypoints == null || waypoints.Length == 0)
         {
-            // Try to auto-populate from children if none assigned
             PopulateFromChildren();
         }
 
@@ -52,4 +51,6 @@ public class WaypointCircuit : MonoBehaviour
             waypoints[i] = transform.GetChild(i);
         }
     }
+
+
 }
