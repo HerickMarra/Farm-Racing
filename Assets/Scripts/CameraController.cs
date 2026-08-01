@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using UnityEngine.InputSystem;
 
+[DefaultExecutionOrder(100)]
 public class CameraController : MonoBehaviour
 {
     [Header("Target Tracking")]
@@ -15,11 +16,11 @@ public class CameraController : MonoBehaviour
 
     [Header("Damping / Smoothness")]
     [Tooltip("How smoothly the camera follows the kart's position.")]
-    public float positionSmoothTime = 0.08f;
+    public float positionSmoothTime = 0.05f;
     [Tooltip("How smoothly the camera rotates to face the kart.")]
-    public float rotationSmoothTime = 0.15f;
+    public float rotationSmoothTime = 0.08f;
     [Tooltip("How smoothly the camera responds to the kart's direction changes.")]
-    public float directionSmoothTime = 0.4f;
+    public float directionSmoothTime = 0.18f;
 
     [Header("Dynamic FOV")]
     public bool useDynamicFOV = true;
@@ -32,7 +33,6 @@ public class CameraController : MonoBehaviour
     public float maxTiltAngle = 4.0f;
     public float tiltSpeed = 5.0f;
     private float currentTilt = 0f;
-
 
     // Cinema mode state variables
     private List<KartController> cinemaKarts = new List<KartController>();
@@ -47,10 +47,18 @@ public class CameraController : MonoBehaviour
     private Camera cam;
     private Rigidbody targetRb;
 
+    // Cached target transform references (0 GC allocations)
+    private Transform cachedTargetTransform;
+    private Transform cachedTargetRoot;
+    private RaceManager cachedRaceManager;
+
+    // Smooth wall anti-clipping
+    private float currentClipOffset = 0f;
+    private float clipVelocity = 0f;
+
     /// <summary>
     /// The actual gameplay Camera that renders the race and follows the player.
-    /// Other systems (e.g. world-tracking HUD) should use this instead of Camera.main,
-    /// which is ambiguous in multi-scene builds where more than one camera is tagged "MainCamera".
+    /// Other systems (e.g. world-tracking HUD) should use this instead of Camera.main.
     /// </summary>
     public Camera Cam
     {
@@ -78,22 +86,20 @@ public class CameraController : MonoBehaviour
 
     private void Start()
     {
-        // Auto-optimize default damping parameters if they match the old sluggish defaults (which caused heavy lag)
-        if (Mathf.Approximately(directionSmoothTime, 0.4f)) directionSmoothTime = 0.18f;
-        if (Mathf.Approximately(rotationSmoothTime, 0.15f)) rotationSmoothTime = 0.08f;
-        if (Mathf.Approximately(positionSmoothTime, 0.08f)) positionSmoothTime = 0.05f;
-
         cam = GetComponent<Camera>();
         FindActivePlayerTarget();
         if (target != null)
         {
             smoothForward = target.transform.forward;
             targetRb = target.GetComponent<Rigidbody>();
+            cachedTargetTransform = target.transform;
+            cachedTargetRoot = cachedTargetTransform.root;
         }
         if (waypointCircuit == null)
         {
             waypointCircuit = Object.FindAnyObjectByType<WaypointCircuit>();
         }
+        cachedRaceManager = Object.FindAnyObjectByType<RaceManager>();
     }
 
     private void LateUpdate()
@@ -108,8 +114,6 @@ public class CameraController : MonoBehaviour
         }
         else
         {
-            // If we don't have a target, or the current target is no longer marked as the player,
-            // dynamically search for the new player-controlled kart!
             if (target == null || !target.isPlayer)
             {
                 FindActivePlayerTarget();
@@ -127,30 +131,26 @@ public class CameraController : MonoBehaviour
         int W = waypointCircuit.waypoints.Length;
         if (W == 0) return;
 
-        // Progress camera along the track waypoints (significantly faster, drone style speed)
         introProgress += Time.deltaTime * 4.2f;
         if (introProgress >= 1f)
         {
             int advanced = Mathf.FloorToInt(introProgress);
             introWaypointIndex += advanced;
             introWaypointsVisited += advanced;
-            introProgress = introProgress % 1f; // Keep fractional overshoot to avoid position jumps
+            introProgress = introProgress % 1f;
 
-            // Automatically start the countdown if the intro camera completes a full lap of the circuit
             if (introWaypointsVisited >= W)
             {
-                RaceManager raceManager = Object.FindAnyObjectByType<RaceManager>();
-                if (raceManager != null)
+                if (cachedRaceManager == null) cachedRaceManager = Object.FindAnyObjectByType<RaceManager>();
+                if (cachedRaceManager != null)
                 {
-                    raceManager.StartRaceCountdown();
+                    cachedRaceManager.StartRaceCountdown();
                 }
             }
 
             introWaypointIndex = introWaypointIndex % W;
         }
 
-        // Fetch waypoints AFTER resolving the current introWaypointIndex so the lerp parameters 
-        // are synchronized, preventing teleportation jumps back and forth at boundaries.
         Transform currentWp = waypointCircuit.waypoints[introWaypointIndex];
         Transform nextWp = waypointCircuit.waypoints[(introWaypointIndex + 1) % W];
         if (currentWp == null || nextWp == null) return;
@@ -158,7 +158,6 @@ public class CameraController : MonoBehaviour
         Vector3 posOnPath = Vector3.Lerp(currentWp.position, nextWp.position, introProgress);
         Vector3 forwardDir = (nextWp.position - currentWp.position).normalized;
 
-        // Smoothly interpolate forward direction (gentle Slerp to eliminate any camera jerk/tranco)
         if (introSmoothForward == Vector3.zero)
         {
             introSmoothForward = forwardDir;
@@ -166,26 +165,21 @@ public class CameraController : MonoBehaviour
         float tIntroForward = 1f - Mathf.Exp(-Time.deltaTime * 3.5f);
         introSmoothForward = Vector3.Slerp(introSmoothForward, forwardDir, tIntroForward);
 
-        // Position camera behind lookahead point and elevated using the smoothed direction vector
         Vector3 cameraTargetPos = posOnPath + Vector3.up * 4.5f - introSmoothForward * 9.0f;
 
-        // Smoothly position the camera (adjusted factor for responsive but smooth drone-like follow style)
         float tIntroPos = 1f - Mathf.Exp(-Time.deltaTime * 3.8f);
         transform.position = Vector3.Lerp(transform.position, cameraTargetPos, tIntroPos);
         
-        // Calculate banking/roll angle based on steering curvature (like a racing drone tilting into curves)
         float turnAngle = Vector3.SignedAngle(introSmoothForward, forwardDir, Vector3.up);
-        float targetRoll = Mathf.Clamp(-turnAngle * 2.2f, -28f, 28f); // Bank up to 28 degrees
+        float targetRoll = Mathf.Clamp(-turnAngle * 2.2f, -28f, 28f);
         float tIntroRoll = 1f - Mathf.Exp(-Time.deltaTime * 5.0f);
         introRoll = Mathf.Lerp(introRoll, targetRoll, tIntroRoll);
 
-        // Cinematographically rotate/look at target using Slerp and apply banking rotation
         Vector3 lookAtTarget = posOnPath + introSmoothForward * 6.0f + Vector3.up * 1.2f;
         Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
         if (targetDirection.sqrMagnitude > 0.001f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
-            // Apply roll rotation (Z-axis tilting) relative to local target alignment
             targetRotation = targetRotation * Quaternion.Euler(0f, 0f, introRoll);
             float tIntroRot = 1f - Mathf.Exp(-Time.deltaTime * 2.8f);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tIntroRot);
@@ -198,14 +192,12 @@ public class CameraController : MonoBehaviour
         FindActivePlayerTarget();
         if (target != null)
         {
-            // Do NOT snap position and rotation instantly anymore.
-            // Initialize the smoothForward vector matching the current camera looking direction
             smoothForward = transform.forward;
             smoothForward.y = 0f;
             smoothForward.Normalize();
             
             positionVelocity = Vector3.zero;
-            transitionTimer = 1.6f; // Start a faster 1.6s smooth transition glide
+            transitionTimer = 1.6f;
             transitionStartPos = transform.position;
             transitionStartRot = transform.rotation;
         }
@@ -224,6 +216,8 @@ public class CameraController : MonoBehaviour
             if (target != null)
             {
                 targetRb = target.GetComponent<Rigidbody>();
+                cachedTargetTransform = target.transform;
+                cachedTargetRoot = cachedTargetTransform.root;
                 smoothForward = target.transform.forward;
             }
         }
@@ -237,66 +231,66 @@ public class CameraController : MonoBehaviour
         if (cinemaSwitchTimer >= 4.0f)
         {
             cinemaSwitchTimer = 0f;
-            // Target the next valid kart
             cinemaTargetIndex = (cinemaTargetIndex + 1) % cinemaKarts.Count;
             target = cinemaKarts[cinemaTargetIndex];
             if (target != null)
             {
                 targetRb = target.GetComponent<Rigidbody>();
+                cachedTargetTransform = target.transform;
+                cachedTargetRoot = cachedTargetTransform.root;
                 smoothForward = target.transform.forward;
             }
         }
 
         if (target == null) return;
 
-        cinemaAngleOffset += Time.deltaTime * 20f; // Rotate camera slowly
+        cinemaAngleOffset += Time.deltaTime * 20f;
 
-        // Alternate camera style: 0 = slow orbital rotation, 1 = head-on track facing, 2 = standard follow
         int style = cinemaTargetIndex % 3;
+        Vector3 targetPos = cachedTargetTransform.position;
 
         if (style == 0)
         {
-            // Orbital rotation shot - Increased distance to 9.2f
             Quaternion rotation = Quaternion.Euler(14f, cinemaAngleOffset, 0f);
-            Vector3 targetPosition = target.transform.position + rotation * new Vector3(0f, 0f, -9.2f) + Vector3.up * 1.5f;
+            Vector3 targetPosition = targetPos + rotation * new Vector3(0f, 0f, -9.2f) + Vector3.up * 1.5f;
             float tCinemaPos1 = 1f - Mathf.Exp(-Time.deltaTime * 3.5f);
             transform.position = Vector3.Lerp(transform.position, targetPosition, tCinemaPos1);
-            transform.LookAt(target.transform.position + Vector3.up * 0.6f);
+            transform.LookAt(targetPos + Vector3.up * 0.6f);
         }
         else if (style == 1)
         {
-            // Front track shot (looks back at the kart's front grilles as it drives) - Increased distance to 8.8f
-            Vector3 targetPosition = target.transform.position + target.transform.forward * 8.8f + Vector3.up * 1.6f;
+            Vector3 targetPosition = targetPos + cachedTargetTransform.forward * 8.8f + Vector3.up * 1.6f;
             float tCinemaPos2 = 1f - Mathf.Exp(-Time.deltaTime * 4f);
             transform.position = Vector3.Lerp(transform.position, targetPosition, tCinemaPos2);
-            transform.LookAt(target.transform.position + Vector3.up * 0.6f);
+            transform.LookAt(targetPos + Vector3.up * 0.6f);
         }
         else
         {
-            // Cinematic follow
             FollowTarget();
         }
 
-        // Hard guarantee: Camera never gets closer than 6.8 meters to the target kart in cinema mode
         float minDistance = 6.8f;
-        Vector3 camToTarget = transform.position - target.transform.position;
+        Vector3 camToTarget = transform.position - targetPos;
         float currentDist = camToTarget.magnitude;
         if (currentDist < minDistance)
         {
-            transform.position = target.transform.position + camToTarget.normalized * minDistance;
+            transform.position = targetPos + camToTarget.normalized * minDistance;
         }
     }
 
     private void FindActivePlayerTarget()
     {
         var karts = KartController.ActiveKarts;
-        foreach (var kart in karts)
+        for (int i = 0; i < karts.Count; i++)
         {
+            KartController kart = karts[i];
             if (kart != null && kart.isPlayer)
             {
                 target = kart;
                 targetRb = target.GetComponent<Rigidbody>();
-                smoothForward = target.transform.forward;
+                cachedTargetTransform = target.transform;
+                cachedTargetRoot = cachedTargetTransform.root;
+                smoothForward = cachedTargetTransform.forward;
                 break;
             }
         }
@@ -304,55 +298,48 @@ public class CameraController : MonoBehaviour
 
     private void FollowTarget()
     {
-        if (target == null) return;
+        if (target == null || cachedTargetTransform == null) return;
 
-        // 1. Smoothly interpolate the tracking direction (blending forward and actual physical velocity)
-        Vector3 targetForward = target.transform.forward;
+        Vector3 targetForward = cachedTargetTransform.forward;
+        Vector3 targetPos = cachedTargetTransform.position;
         
-        // Only blend with velocity vector if the kart is moving forward (to prevent camera flipping on reverse/S key)
-        bool isMovingForward = targetRb != null && Vector3.Dot(targetRb.linearVelocity, target.transform.forward) >= 0f;
+        bool isMovingForward = targetRb != null && Vector3.Dot(targetRb.linearVelocity, targetForward) >= 0f;
         
         if (targetRb != null && isMovingForward && targetRb.linearVelocity.sqrMagnitude > 1.0f)
         {
-            Vector3 rawVelDir = targetRb.linearVelocity.normalized;
+            Vector3 rawVelDir = targetRb.linearVelocity;
             rawVelDir.y = 0f;
-            rawVelDir.Normalize();
             
             if (rawVelDir.sqrMagnitude > 0.001f)
             {
-                // Smooth the physical velocity vector in the render loop to eliminate discrete physics steps/stuttering
-                float tVelSmooth = 1f - Mathf.Exp(-Time.deltaTime * 10f); // 100ms direction smoothing
+                rawVelDir.Normalize();
+                float tVelSmooth = 1f - Mathf.Exp(-Time.deltaTime * 12f);
                 smoothedVelocityDir = Vector3.Slerp(smoothedVelocityDir, rawVelDir, tVelSmooth).normalized;
 
-                // During drift, heavily follow velocity vector to prevent camera snapping/jitter
-                // In normal driving, blend it slightly for smooth steering transitions
-                float blendFactor = target.IsDrifting ? 0.85f : 0.65f;
+                float blendFactor = target.IsDrifting ? 0.85f : 0.60f;
                 float speedPercent = Mathf.Clamp01(smoothedSpeed / 8f);
-                targetForward = Vector3.Slerp(target.transform.forward, smoothedVelocityDir, speedPercent * blendFactor).normalized;
+                targetForward = Vector3.Slerp(targetForward, smoothedVelocityDir, speedPercent * blendFactor).normalized;
             }
         }
         else
         {
-            // If reversing or stationary, track the raw chassi forward vector to keep the camera behind the kart
             targetForward.y = 0f;
             targetForward.Normalize();
-            smoothedVelocityDir = targetForward; // Align cache to prevent jumps on acceleration
+            smoothedVelocityDir = targetForward;
         }
 
         if (targetForward.sqrMagnitude > 0.001f)
         {
-            // Dynamically speed up tracking response during active drift to reduce visual lag
             float activeDirectionSmooth = directionSmoothTime;
             if (target.IsDrifting)
             {
-                activeDirectionSmooth *= 0.5f; // Reacts 50% faster
+                activeDirectionSmooth *= 0.5f;
             }
             
-            float tDir = 1f - Mathf.Exp(-Time.deltaTime / activeDirectionSmooth);
+            float tDir = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(activeDirectionSmooth, 0.01f));
             smoothForward = Vector3.Slerp(smoothForward, targetForward, tDir);
         }
 
-        // Check look-behind input via Ctrl keys
         float dirMultiplier = -1f;
         float lookAheadDirection = 1f;
         bool lookBehind = false;
@@ -364,47 +351,53 @@ public class CameraController : MonoBehaviour
 
         if (lookBehind)
         {
-            dirMultiplier = 1f;       // Inverts follow position (places camera in front)
-            lookAheadDirection = -1f; // Inverts curve look-ahead offset direction
+            dirMultiplier = 1f;
+            lookAheadDirection = -1f;
         }
 
-        // 2. Determine target position based on direction multiplier
-        Vector3 targetPosition = target.transform.position + (smoothForward * distance * dirMultiplier) + (Vector3.up * height);
+        // Raycast anti-clipping against scenery walls (0 GC allocations)
+        Vector3 desiredCameraPos = targetPos + (smoothForward * distance * dirMultiplier) + (Vector3.up * height);
+        Vector3 rayOrigin = targetPos + Vector3.up * 0.5f;
+        Vector3 rayDir = (desiredCameraPos - rayOrigin).normalized;
+        float rayDist = distance;
 
-        // Simple raycast to prevent camera clipping through ground or low scenery (ignoring trigger colliders)
+        float targetClipOffset = 0f;
         RaycastHit hit;
-        if (Physics.Raycast(target.transform.position + Vector3.up * 0.5f, (targetPosition - target.transform.position).normalized, out hit, distance, ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(rayOrigin, rayDir, out hit, rayDist, ~0, QueryTriggerInteraction.Ignore))
         {
-            // If we hit something (except ourselves), pull camera forward
-            if (hit.collider.gameObject != target.gameObject && !hit.collider.transform.IsChildOf(target.transform))
+            Transform hitT = hit.collider.transform;
+            if (hitT != cachedTargetTransform && hitT.root != cachedTargetRoot)
             {
-                targetPosition = hit.point + hit.normal * 0.2f;
+                // Smoothly pull camera forward when hitting walls instead of snapping instantly
+                targetClipOffset = distance - hit.distance + 0.25f;
             }
         }
 
-        // 3. Determine looking direction
-        Vector3 lookAtTarget = target.transform.position + Vector3.up * lookAtOffset;
+        // Smoothly damp the wall offset to eliminate camera wall-clipping jitters
+        currentClipOffset = Mathf.SmoothDamp(currentClipOffset, targetClipOffset, ref clipVelocity, 0.06f);
+        float effectiveDistance = Mathf.Max(0.5f, distance - currentClipOffset);
+
+        Vector3 targetPosition = targetPos + (smoothForward * effectiveDistance * dirMultiplier) + (Vector3.up * height);
+
+        // Smooth look-at target position
+        Vector3 lookAtTarget = targetPos + Vector3.up * lookAtOffset;
         
-        // Add a slight look-ahead based on speed to help the player navigate curves (using frame-rate independent speed smoothing)
         float rawSpeed = targetRb != null ? targetRb.linearVelocity.magnitude : 0f;
         float tSpeed = 1f - Mathf.Exp(-Time.deltaTime * 6.0f);
         smoothedSpeed = Mathf.Lerp(smoothedSpeed, rawSpeed, tSpeed);
 
         lookAtTarget += smoothForward * (smoothedSpeed * 0.06f * lookAheadDirection);
 
-        // 4. Position and orient camera with either smooth transition ease-out or standard follow
         if (transitionTimer > 0f)
         {
             transitionTimer -= Time.deltaTime;
             float t = 1f - Mathf.Clamp01(transitionTimer / 1.6f);
-            
-            // Cubic Ease-Out curve: starts fast to cover distance, then decelerates to 0 speed smoothly at the end
             float tCurve = 1f - Mathf.Pow(1f - t, 3f);
             
             Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
             Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
             
-            if (useCameraTilt && target != null)
+            if (useCameraTilt)
             {
                 float steerValue = target.SteeringInput;
                 float targetTilt = -steerValue * maxTiltAngle;
@@ -415,68 +408,63 @@ public class CameraController : MonoBehaviour
             transform.position = Vector3.Lerp(transitionStartPos, targetPosition, tCurve);
             transform.rotation = Quaternion.Slerp(transitionStartRot, targetRotation, tCurve);
             
-            positionVelocity = Vector3.zero; // Clear standard follow velocity during transition
+            positionVelocity = Vector3.zero;
         }
         else
         {
-            // Smoothly move position and rotation, or snap instantly on state change
             if (lookBehind != wasLookingBehind)
             {
-                // Snap position instantly
                 transform.position = targetPosition;
-                
-                // Calculate instant look direction relative to the snapped position
                 Vector3 instantDirection = (lookAtTarget - targetPosition).normalized;
                 transform.rotation = Quaternion.LookRotation(instantDirection);
-                
-                positionVelocity = Vector3.zero; // Reset velocity
+                positionVelocity = Vector3.zero;
                 wasLookingBehind = lookBehind;
             }
             else
             {
-                // Smoothly move the camera's position using SmoothDamp
+                // Smooth position
                 transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref positionVelocity, positionSmoothTime);
                 
-                // Smoothly interpolate rotation
+                // Smooth rotation
                 Vector3 targetDirection = (lookAtTarget - transform.position).normalized;
-                Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
-                
-                if (useCameraTilt && target != null)
+                if (targetDirection.sqrMagnitude > 0.001f)
                 {
-                    float steerValue = target.SteeringInput;
-                    float targetTilt = -steerValue * maxTiltAngle;
-                    currentTilt = Mathf.Lerp(currentTilt, targetTilt, 1f - Mathf.Exp(-Time.deltaTime * tiltSpeed));
-                    targetRotation = targetRotation * Quaternion.Euler(0f, 0f, currentTilt);
-                }
+                    Quaternion targetRotation = Quaternion.LookRotation(targetDirection);
+                    
+                    if (useCameraTilt)
+                    {
+                        float steerValue = target.SteeringInput;
+                        float targetTilt = -steerValue * maxTiltAngle;
+                        currentTilt = Mathf.Lerp(currentTilt, targetTilt, 1f - Mathf.Exp(-Time.deltaTime * tiltSpeed));
+                        targetRotation = targetRotation * Quaternion.Euler(0f, 0f, currentTilt);
+                    }
 
-                // Dynamically speed up rotation tracking during drift to keep up with the slide
-                float activeRotationSmooth = rotationSmoothTime;
-                if (target != null && target.IsDrifting)
-                {
-                    activeRotationSmooth *= 0.6f; // Rotate 40% faster during active drift
+                    float activeRotationSmooth = rotationSmoothTime;
+                    if (target.IsDrifting)
+                    {
+                        activeRotationSmooth *= 0.6f;
+                    }
+                    float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(activeRotationSmooth, 0.01f));
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tRotFollow);
                 }
-                float tRotFollow = 1f - Mathf.Exp(-Time.deltaTime / activeRotationSmooth);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, tRotFollow);
             }
         }
+        
 
-        // 4. Dynamic Field of View (using smoothed speed)
+        // Dynamic Field of View
         if (useDynamicFOV && cam != null)
         {
             float currentMin = minFOV;
             float currentMax = maxFOV;
-            if (target != null)
+            if (target.IsBoosting)
             {
-                if (target.IsBoosting)
-                {
-                    currentMin += 5f;
-                    currentMax += 12f; // Expand dynamic range during boost
-                }
-                else if (target.IsDrifting)
-                {
-                    currentMin += 3f;
-                    currentMax += 7f; // Expand range slightly during drift for better track view
-                }
+                currentMin += 5f;
+                currentMax += 12f;
+            }
+            else if (target.IsDrifting)
+            {
+                currentMin += 3f;
+                currentMax += 7f;
             }
             float targetFOV = Mathf.Lerp(currentMin, currentMax, smoothedSpeed / fovSpeedThreshold);
             float tFOV = 1f - Mathf.Exp(-Time.deltaTime * 4f);
@@ -484,4 +472,3 @@ public class CameraController : MonoBehaviour
         }
     }
 }
-
