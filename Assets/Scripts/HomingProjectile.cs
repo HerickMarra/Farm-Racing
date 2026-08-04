@@ -12,9 +12,9 @@ public class HomingProjectile : MonoBehaviour
     [Tooltip("Current flight speed (m/s). When 'Use Dynamic Speed' is enabled this is recomputed at launch from the target's speed.")]
     public float speed = 120f;
     [Tooltip("How fast the projectile can correct its heading (degrees per second). Lower = wider, lazier curves.")]
-    public float turnRate = 420f;
+    public float turnRate = 480f;
     [Tooltip("Maximum time (in seconds) the projectile may exist. If it does not hit a target within this time it self-destructs.")]
-    public float lifetime = 4f;
+    public float lifetime = 2.5f;
 
     [Header("Dynamic Speed (Balancing)")]
     [Tooltip("If ON, the missile speed is based on the locked target's current speed at launch instead of the fixed 'speed' value above.")]
@@ -26,19 +26,29 @@ public class HomingProjectile : MonoBehaviour
     [Tooltip("The missile speed is capped this many m/s BELOW the target's Drift/Boost top speed, so a kart that boosts at the right moment can escape.")]
     public float escapeMargin = 3f;
 
+    [Header("Launch Arc & Trajectory")]
+    [Tooltip("Duration of initial rapid vertical pop-up phase.")]
+    public float popDuration = 0.22f;
+    [Tooltip("Duration of the quick dip-down phase following pop-up.")]
+    public float dipDuration = 0.20f;
+    [Tooltip("Upward pitch strength during pop-up.")]
+    public float launchUpBias = 2.8f;
+    [Tooltip("Minimum height above ground surface to prevent clipping.")]
+    public float minHeightAboveGround = 0.7f;
+
     [Header("Zig-Zag / Wobble (instability)")]
     [Tooltip("How fast the projectile weaves side to side.")]
-    public float wobbleFrequency = 6f;
+    public float wobbleFrequency = 14f;
     [Tooltip("Lateral weave strength.")]
     public float wobbleAmplitude = 5f;
     [Tooltip("Vertical bobbing strength.")]
-    public float wobbleVertical = 1.5f;
+    public float wobbleVertical = 2.5f;
     [Tooltip("Random lateral offset injected for a chaotic, unstable rocket feel.")]
-    public float randomWander = 1.5f;
+    public float randomWander = 2.0f;
 
     [Header("Roll Spin")]
     [Tooltip("How fast the projectile body rolls around its forward axis (degrees per second).")]
-    public float rollSpeed = 260f;
+    public float rollSpeed = 540f;
 
     [Header("Hit Settings")]
     [Tooltip("Stun duration applied to the kart that gets hit.")]
@@ -71,25 +81,17 @@ public class HomingProjectile : MonoBehaviour
         owner = ownerKart;
         target = targetKart;
 
-        // Initial direction: bias towards the target, otherwise launch along owner facing.
-        Vector3 initialDir;
-        if (target != null)
-        {
-            initialDir = (GetTargetPoint() - transform.position).normalized;
-        }
-        else
-        {
-            initialDir = ownerKart != null ? ownerKart.transform.forward : transform.forward;
-        }
+        // Initial direction: pitch upward on launch for dramatic pop-up arc
+        Vector3 ownerForward = ownerKart != null ? ownerKart.transform.forward : transform.forward;
+        Vector3 initialDir = (ownerForward + Vector3.up * launchUpBias).normalized;
 
         if (initialDir.sqrMagnitude < 0.001f)
         {
-            initialDir = transform.forward;
+            initialDir = transform.forward + Vector3.up * launchUpBias;
         }
-        currentDirection = initialDir;
+        currentDirection = initialDir.normalized;
 
-        // Dynamic speed balancing: match the target's current pace (so it catches a normal-speed kart),
-        // but always stay below the target's Drift/Boost top speed so a well-timed boost lets them escape.
+        // Dynamic speed balancing: match the target's current pace
         if (useDynamicSpeed && target != null)
         {
             speed = ComputeDynamicSpeed(target);
@@ -121,15 +123,10 @@ public class HomingProjectile : MonoBehaviour
 
     /// <summary>
     /// Computes the missile's flight speed from the target's current speed.
-    /// The result is always capped below the target's Drift/Boost top speed, so that a
-    /// kart using a boost at the right moment can outrun the missile (counter-play mechanic).
-    /// Override to implement custom balancing per projectile type.
     /// </summary>
     protected virtual float ComputeDynamicSpeed(KartController targetKart)
     {
-        // Dynamic speed is exactly three times the speed of the target kart.
         float desired = targetKart.CurrentSpeed * 3.0f;
-        // Clamp between our high minimum speed floor (75 m/s) and a high maximum speed limit (140 m/s)
         return Mathf.Clamp(desired, minSpeed, 140f);
     }
 
@@ -157,11 +154,10 @@ public class HomingProjectile : MonoBehaviour
     }
 
     /// <summary>
-    /// Core homing + zig-zag movement. Override to implement custom flight behaviour.
+    /// Core homing + dynamic 3D flight behavior with ground anti-clipping protection.
     /// </summary>
     protected virtual void UpdateMovement(float dt)
     {
-        // Recalculate dynamic speed in real-time to respond to target's drift/boost state
         if (useDynamicSpeed && target != null)
         {
             speed = ComputeDynamicSpeed(target);
@@ -169,43 +165,71 @@ public class HomingProjectile : MonoBehaviour
 
         Vector3 desiredDir;
 
-        if (target != null)
+        if (age < popDuration)
         {
-            Vector3 toTarget = GetTargetPoint() - transform.position;
-            float distance = toTarget.magnitude;
-            Vector3 baseDir = distance > 0.001f ? toTarget / distance : currentDirection;
-
-            // Build a wobble offset perpendicular to the base direction.
-            wobblePhase += dt * wobbleFrequency;
-            Vector3 right = Vector3.Cross(Vector3.up, baseDir).normalized;
-            Vector3 up = Vector3.Cross(baseDir, right).normalized;
-
-            float lateral = Mathf.Sin(wobblePhase) * wobbleAmplitude;
-            float vertical = Mathf.Sin(wobblePhase * 0.7f + 1.3f) * wobbleVertical;
-
-            // Inject Perlin-noise wander for an unstable, chaotic feel.
-            float noise = (Mathf.PerlinNoise(wanderSeed.x + age * 1.7f, wanderSeed.y) - 0.5f) * 2f;
-            lateral += noise * randomWander;
-
-            // Dampen the wobble as the missile closes in so it still connects.
-            float distFactor = Mathf.Clamp01(distance / 9f);
-
-            Vector3 wobble = (right * lateral + up * vertical) * distFactor;
-            desiredDir = (baseDir * speed + wobble).normalized;
+            // FASE 1: Subida rápida com tudo para o alto (Pop-up)
+            Vector3 ownerForward = owner != null ? owner.transform.forward : transform.forward;
+            desiredDir = (ownerForward + Vector3.up * launchUpBias).normalized;
+        }
+        else if (age < popDuration + dipDuration)
+        {
+            // FASE 2: Dá uma abaixada rápida direcionada ao alvo/chão
+            Vector3 toTarget = target != null ? (GetTargetPoint() - transform.position).normalized : (owner != null ? owner.transform.forward : transform.forward);
+            desiredDir = (toTarget - Vector3.up * 0.8f).normalized;
         }
         else
         {
-            // No target: keep flying straight ahead.
-            desiredDir = currentDirection;
+            // FASE 3: Voo teleguiado com Zig-Zag lateral e vertical dinâmico
+            if (target != null)
+            {
+                Vector3 toTarget = GetTargetPoint() - transform.position;
+                float distance = toTarget.magnitude;
+                Vector3 baseDir = distance > 0.001f ? toTarget / distance : currentDirection;
+
+                wobblePhase += dt * wobbleFrequency;
+                Vector3 right = Vector3.Cross(Vector3.up, baseDir).normalized;
+                if (right.sqrMagnitude < 0.001f) right = Vector3.right;
+                Vector3 up = Vector3.Cross(baseDir, right).normalized;
+
+                float lateral = Mathf.Sin(wobblePhase) * wobbleAmplitude;
+                float vertical = Mathf.Sin(wobblePhase * 1.3f + 0.5f) * wobbleVertical;
+
+                float noise = (Mathf.PerlinNoise(wanderSeed.x + age * 3.0f, wanderSeed.y) - 0.5f) * 2f;
+                lateral += noise * randomWander;
+
+                // Restringe a oscilação conforme se aproxima
+                float distFactor = Mathf.Clamp01(distance / 6f);
+
+                Vector3 wobble = (right * lateral + up * vertical) * distFactor;
+                desiredDir = (baseDir * speed + wobble).normalized;
+            }
+            else
+            {
+                desiredDir = currentDirection;
+            }
         }
+
+        float effectiveTurnRate = age < popDuration ? 360f : (age < popDuration + dipDuration ? 500f : turnRate);
 
         currentDirection = Vector3.RotateTowards(
             currentDirection,
             desiredDir,
-            turnRate * Mathf.Deg2Rad * dt,
+            effectiveTurnRate * Mathf.Deg2Rad * dt,
             0f).normalized;
 
         transform.position += currentDirection * speed * dt;
+
+        // Trava anti-enterramento no chão (Anti Ground-Clipping Raycast)
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit groundHit, 5f, ~0, QueryTriggerInteraction.Ignore))
+        {
+            float targetMinY = groundHit.point.y + minHeightAboveGround;
+            if (transform.position.y < targetMinY)
+            {
+                Vector3 correctedPos = transform.position;
+                correctedPos.y = Mathf.Lerp(correctedPos.y, targetMinY, dt * 20f);
+                transform.position = correctedPos;
+            }
+        }
     }
 
     /// <summary>Orient the body along the flight path and apply a smooth roll spin.</summary>

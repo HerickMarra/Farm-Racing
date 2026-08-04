@@ -13,10 +13,11 @@ MonoBehaviour:
   m_Name: MapData_Fazenda_04
   m_EditorClassIdentifier: Assembly-CSharp::MapData
   mapName: Fazenda 4
-  thumbnail: {fileID: 21300000, guid: aefccd8ee2e7d4a45a64a124edbb6380, type: 3}
+  thumbnail: {fileID: 21300000, guid: a9c50916c2b358a46aa929edaab029a7, type: 3}
   scenesToLoad:
   - Fazenda Veloz
   - Fase01
   activeSceneName: Fazenda Veloz
-  isUnlocked: 1
+  isUnlocked: 0
   starsCount: 0
+  nextMapToUnlock: {fileID: 0}

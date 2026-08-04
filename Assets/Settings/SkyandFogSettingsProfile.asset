@@ -161,7 +161,7 @@ MonoBehaviour:
     m_Value: {x: 1, y: 1, z: 1, w: 0}
   gamma:
     m_OverrideState: 1
-    m_Value: {x: 1, y: 0.96, z: 0.976, w: -0.10833727}
+    m_Value: {x: 1, y: 0.96, z: 0.976, w: -0.055392195}
   gain:
     m_OverrideState: 1
     m_Value: {x: 1, y: 0.92, z: 0.948, w: -0.037682515}
@@ -289,7 +289,7 @@ MonoBehaviour:
     m_Value: 64
   m_VolumetricFogBudget:
     m_OverrideState: 0
-    m_Value: 0.333
+    m_Value: 0.25
   m_ResolutionDepthRatio:
     m_OverrideState: 0
     m_Value: 0.5
@@ -320,13 +320,13 @@ MonoBehaviour:
     m_Value: 0
   intensity:
     m_OverrideState: 1
-    m_Value: 1.986
+    m_Value: 1.25
   directLightingStrength:
     m_OverrideState: 1
-    m_Value: 0.589
+    m_Value: 0.526
   radius:
     m_OverrideState: 1
-    m_Value: 4.58
+    m_Value: 4.47
   spatialBilateralAggressiveness:
     m_OverrideState: 1
     m_Value: 0.15
@@ -392,7 +392,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcf384b154398e341b6b29969c078198, type: 3}
   m_Name: MotionBlur
   m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.MotionBlur
-  active: 0
+  active: 1
   quality:
     m_OverrideState: 1
     m_Value: 1
@@ -457,13 +457,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5a6b00fcf518bb94a90b408492e07b44, type: 3}
   m_Name: FilmGrain
   m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.FilmGrain
-  active: 0
+  active: 1
   type:
     m_OverrideState: 1
     m_Value: 1
   intensity:
     m_OverrideState: 1
-    m_Value: 0.068
+    m_Value: 0.222
   response:
     m_OverrideState: 1
     m_Value: 0.8
@@ -520,7 +520,7 @@ MonoBehaviour:
     m_Value: {x: 0.5, y: 0.5}
   intensity:
     m_OverrideState: 1
-    m_Value: 0.534
+    m_Value: 0.587
   smoothness:
     m_OverrideState: 1
     m_Value: 0.479
@@ -592,7 +592,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24f077503be6ae942a1e1245dbd53ea9, type: 3}
   m_Name: Bloom
   m_EditorClassIdentifier: Unity.RenderPipelines.HighDefinition.Runtime::UnityEngine.Rendering.HighDefinition.Bloom
-  active: 0
+  active: 1
   quality:
     m_OverrideState: 1
     m_Value: 1
@@ -644,16 +644,16 @@ MonoBehaviour:
     m_Value: 0.32
   contrast:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: -3.6
   colorFilter:
     m_OverrideState: 1
     m_Value: {r: 1, g: 1, b: 1, a: 1}
   hueShift:
     m_OverrideState: 1
-    m_Value: 3
+    m_Value: 0
   saturation:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: -8.7
 --- !u!114 &7642060734654139733
 MonoBehaviour:
   m_ObjectHideFlags: 3

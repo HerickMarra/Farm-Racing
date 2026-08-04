@@ -79,18 +79,37 @@ public class CaixaSurpresa : MonoBehaviour
         KartController kart = other.GetComponentInParent<KartController>();
         if (kart != null)
         {
-            // Ativa o especial no kart
-            kart.hasSpecial = true;
+            // Sorteio de recompensa única (pesos de probabilidade)
+            // 35% -> 1 Carga de Nitro
+            // 35% -> 1 Especial (mesma probabilidade de 1 Nitro)
+            // 20% -> 2 Cargas de Nitro
+            // 10% -> 3 Cargas de Nitro
+            float roll = Random.Range(0f, 100f);
 
-            // Se houver habilidades no pool, escolhe uma aleatoriamente e atribui
-            if (specialAbilitiesPool != null && specialAbilitiesPool.Length > 0)
+            if (roll < 35f)
             {
-                kart.currentSpecial = specialAbilitiesPool[Random.Range(0, specialAbilitiesPool.Length)];
+                // 1 Carga de Nitro
+                kart.AddBoostCharges(1);
             }
-
-            // Escolhe aleatoriamente adicionar 1, 2 ou 3 (total) cargas ao medidor de boost
-            int randomCharges = Random.Range(1, 4); // Retorna 1, 2 ou 3
-            kart.AddBoostCharges(randomCharges);
+            else if (roll < 70f)
+            {
+                // Especial (35% de chance)
+                kart.hasSpecial = true;
+                if (specialAbilitiesPool != null && specialAbilitiesPool.Length > 0)
+                {
+                    kart.currentSpecial = specialAbilitiesPool[Random.Range(0, specialAbilitiesPool.Length)];
+                }
+            }
+            else if (roll < 90f)
+            {
+                // 2 Cargas de Nitro
+                kart.AddBoostCharges(2);
+            }
+            else
+            {
+                // 3 Cargas de Nitro (Mais raro: 10%)
+                kart.AddBoostCharges(3);
+            }
 
             // Inicia o processo de desativação temporária da caixa
             StartCoroutine(DeactivateRoutine());

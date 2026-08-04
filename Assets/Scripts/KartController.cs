@@ -671,9 +671,19 @@ public class KartController : MonoBehaviour
     {
         if (stunTimer > 0f)
         {
+            CheckGroundStatus();
             if (rb != null)
             {
-                rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, Vector3.zero, Time.fixedDeltaTime * 15f);
+                // Smoothly decelerate horizontal momentum while allowing gravity/hopping physics
+                Vector3 horizontalVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+                horizontalVel = Vector3.MoveTowards(horizontalVel, Vector3.zero, Time.fixedDeltaTime * 6f);
+
+                float verticalVel = rb.linearVelocity.y;
+                if (!isGrounded)
+                {
+                    verticalVel -= gravityForce * Time.fixedDeltaTime;
+                }
+                rb.linearVelocity = new Vector3(horizontalVel.x, verticalVel, horizontalVel.z);
             }
             return;
         }
@@ -1045,7 +1055,7 @@ public class KartController : MonoBehaviour
         }
         else if (aiDifficulty == AIDifficulty.Medio)
         {
-            activeMaxSpeed = maxSpeed * 1.28f;
+            activeMaxSpeed = maxSpeed * 1.05f;
         }
         else if (aiDifficulty == AIDifficulty.Dificil)
         {
@@ -1517,8 +1527,8 @@ public class KartController : MonoBehaviour
             }
             else if (aiDifficulty == AIDifficulty.Medio)
             {
-                activeMaxSpeed = maxSpeed * 1.28f;
-                activeAcceleration = acceleration * 1.26f;
+                activeMaxSpeed = maxSpeed * 1.05f;
+                activeAcceleration = acceleration * 1.05f;
             }
             else if (aiDifficulty == AIDifficulty.Dificil)
             {
@@ -2384,9 +2394,12 @@ public class KartController : MonoBehaviour
         isDrifting = false;
         if (rb != null)
         {
-            rb.linearVelocity = Vector3.zero;
+            // Give a mini upward hop impulse while preserving forward momentum
+            Vector3 vel = rb.linearVelocity;
+            vel.y = Mathf.Max(vel.y, 7.5f);
+            rb.linearVelocity = vel;
             rb.angularVelocity = Vector3.zero;
         }
-        Debug.Log($"{gameObject.name} hit by special! Stunned for {duration} seconds.");
+        Debug.Log($"{gameObject.name} hit by special! Stunned for {duration} seconds with forward momentum and mini hop.");
     }
 }

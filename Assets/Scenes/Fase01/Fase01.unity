@@ -9,7 +9,7 @@ OcclusionCullingSettings:
     smallestHole: 0.25
     backfaceThreshold: 100
   m_SceneGUID: 9d5ea39f3892f904793950e19b273369
-  m_OcclusionCullingData: {fileID: 36300000, guid: a5e754b053d96ae4ca2e90e56bd5ef5a, type: 2}
+  m_OcclusionCullingData: {fileID: 36300000, guid: 503c4d822bc5dfc4f9e89ea3a95be438, type: 2}
 --- !u!104 &2
 RenderSettings:
   m_ObjectHideFlags: 0
@@ -93,7 +93,7 @@ LightmapSettings:
     m_ExportTrainingData: 0
     m_TrainingDataDestination: TrainingData
     m_LightProbeSampleCountMultiplier: 4
-  m_LightingDataAsset: {fileID: 112000004, guid: 9ad2565f7d0bcea419e92e2b66e3a203, type: 2}
+  m_LightingDataAsset: {fileID: 112000004, guid: 3261a57a4e6ee1546a511f0b166a2a14, type: 2}
   m_LightingSettings: {fileID: 0}
 --- !u!196 &4
 NavMeshSettings:
@@ -509,6 +509,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (10)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1122,6 +1126,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1768,6 +1776,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (5)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1829,6 +1841,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (9)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1966,6 +1982,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (7)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -3719,6 +3739,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (11)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -4054,6 +4078,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -4804,6 +4832,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (12)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -5210,6 +5242,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (6)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -5831,6 +5867,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (4)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -7474,6 +7514,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (13)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -7878,6 +7922,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (14)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -9513,6 +9561,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -11126,6 +11178,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Caixa de Itens (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -11815,6 +11871,10 @@ PrefabInstance:
     - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
       propertyPath: m_Name
       value: Caixa de Itens (8)
+      objectReference: {fileID: 0}
+    - target: {fileID: 8360474176812218979, guid: c458f56d8a1f1ee47a6c7da1cd306a45, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
